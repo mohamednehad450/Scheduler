@@ -1,0 +1,13 @@
+{
+  "compilerOptions": {
+    "outDir": "./built",
+    "allowJs": true,
+    "target": "es5",
+    "strict": true,
+    "esModuleInterop": true,
+    "downlevelIteration": true
+  },
+  "include": [
+    "./src/**/*"
+  ]
+}
