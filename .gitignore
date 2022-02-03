@@ -1,3 +1,6 @@
 built
 node_modules
 .env
+
+# Db paths
+schedules
