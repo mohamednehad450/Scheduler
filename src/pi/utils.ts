@@ -1,6 +1,6 @@
-import later, { ScheduleData } from "later"
+import later, { ScheduleData, setInterval, Timer } from "later"
 import moment, { Duration } from "moment"
-import { readFileSync } from 'fs'
+import { config } from "./gpio"
 
 type ID = string
 
@@ -47,7 +47,7 @@ const validateSchedule = (sched?: ScheduleData) => {
 const validatePin = (p?: Partial<Pin>): Pin => {
     if (p) {
         const { label, channel } = p
-        const pins: number[] = JSON.parse(readFileSync('config.json', 'utf8')).ValidPins
+        const pins: number[] = config.validPins
 
         if (channel && label && channel in pins) return { channel, label }
 
