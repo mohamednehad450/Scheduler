@@ -67,4 +67,4 @@ const validateDuration = (d?: Duration) => {
 }
 
 export { validateUUID, validateSchedule, validatePin, validateDuration }
-export type { ID, SinglePin, MultiPins, }
+export type { ID, SinglePin, MultiPins, Pin }
