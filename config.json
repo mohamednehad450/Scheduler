@@ -1,5 +1,5 @@
 {
-    "ValidPins": [
+    "validPins": [
         3,
         5,
         7,
@@ -17,5 +17,5 @@
         24,
         23
     ],
-    "BoardMode": "MODE_BCM"
+    "boardMode": "MODE_BCM"
 }
