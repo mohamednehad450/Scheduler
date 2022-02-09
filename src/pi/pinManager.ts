@@ -7,7 +7,7 @@ interface GpioManager {
     isRunning: (p: Pin, cb: CallBack<boolean>) => void
     run: (p: Pin, cb: CallBack<void>) => void
     stop: (p: Pin, cb: CallBack<void>) => void
-    pinsStatus: (cb: CallBack<{ p: Pin, running: boolean }[]>) => void
+    pinsStatus: (cb: CallBack<{ p: Pin, running: boolean, err: Error | null | undefined }[]>) => void
     rest: (cb: CallBack<void>) => void
     destroy: (cb: CallBack<void>) => void
 }
@@ -47,27 +47,35 @@ class PinManager implements GpioManager {
 
     run = (p: Pin, cb: CallBack<void>) => {
         this.isRunning(p, (err, running) => {
-            if (err) cb(err)
+            if (err) {
+                cb(err)
+                return
+            }
             running ? cb(null) : this.gpio.write(p.channel, LOW, cb)
         })
     }
 
     stop = (p: Pin, cb: CallBack<void>) => {
         this.isRunning(p, (err, running) => {
-            if (err) cb(err)
+            if (err) {
+                cb(err)
+                return
+            }
             !running ? cb(null) : this.gpio.write(p.channel, HIGH, cb)
         })
     };
 
-    pinsStatus = (cb: CallBack<{ p: Pin; running: boolean; }[]>) => {
+    pinsStatus = (cb: CallBack<{ p: Pin, running: boolean, err: Error | null | undefined }[]>) => {
         const status: {
             p: Pin,
             running: boolean
+            err: Error | null | undefined
         }[] = []
         this.pins.forEach((p) => {
             this.isRunning(p, (err, running) => {
-                if (err) cb(err)
-                status.push({ p, running: !!running })
+                err ?
+                    status.push({ p, running: false, err: err }) :
+                    status.push({ p, running: !!running, err: null })
                 status.length === this.pins.size && cb(null, status)
             })
         })
