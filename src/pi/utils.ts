@@ -9,19 +9,11 @@ type Pin = {
     label: string,
 }
 
-interface Meta {
+interface Schedule {
     id: ID
     sched: ScheduleData
     name: string
     lastRun?: Date
-}
-
-interface SinglePin extends Meta {
-    pin: Pin
-    duration: Duration
-}
-
-interface MultiPins extends Meta {
     pins: {
         pin: Pin
         duration: Duration
@@ -36,7 +28,7 @@ const validateUUID = (id?: ID) => {
     }
     throw Error('Missing UUID')
 }
-const validateSchedule = (sched?: ScheduleData) => {
+const validateScheduleData = (sched?: ScheduleData) => {
     if (sched) {
         later.schedule(sched)
         return sched
@@ -66,5 +58,5 @@ const validateDuration = (d?: Duration) => {
     throw Error('Missing duration')
 }
 
-export { validateUUID, validateSchedule, validatePin, validateDuration }
-export type { ID, SinglePin, MultiPins, Pin }
+export { validateUUID, validateScheduleData, validatePin, validateDuration }
+export type { ID, Schedule, Pin }

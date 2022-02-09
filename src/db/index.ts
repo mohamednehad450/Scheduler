@@ -1,22 +1,19 @@
-import { MultiPins, SinglePin } from "../pi/utils"
+import { Schedule } from "../pi/utils"
 import { LocalJsonDb } from "./db"
 
-const paths = {
-    SINGLEPIN: 'schedules/single/',
-    MULTIPINS: 'schedules/multi/'
-}
-
-
-const singleDb = new LocalJsonDb<SinglePin>(paths.SINGLEPIN)
-const multiDb = new LocalJsonDb<MultiPins>(paths.MULTIPINS)
-
 type AppDB = {
-    singleDb: LocalJsonDb<SinglePin>,
-    multiDb: LocalJsonDb<MultiPins>
+    schedulesDb: LocalJsonDb<Schedule>,
 }
+
+const paths = {
+    SCHEDULES: 'schedules/',
+}
+
+
+const schedulesDb = new LocalJsonDb<Schedule>(paths.SCHEDULES)
+
 
 const appDb: AppDB = {
-    singleDb,
-    multiDb
+    schedulesDb
 }
 export { appDb, AppDB }
