@@ -1,38 +1,38 @@
 import { v4, } from "uuid"
-import { writeFile, readdir, readFile, readFileSync, rm, existsSync } from 'fs'
+import { writeFile, writeFileSync, readdir, readFile, readFileSync, rm, existsSync } from 'fs'
 import { join } from 'path'
 
 
-interface jsonWithId {
-    id: string
+export interface withId {
+    id: string | number
 }
 
 type CallBack<T> = (err: Error | undefined | null, t?: T) => void
 
-interface DB<T extends jsonWithId> {
+interface DB<T extends withId> {
     insert: (obj: T, cb: CallBack<T>) => void
-    get: (id: string, cb: CallBack<T>) => void
+    get: (id: withId['id'], cb: CallBack<T>) => void
     set: (obj: T, cb: CallBack<T>) => void
-    remove: (id: string, cb: CallBack<void>) => void
-    update: (id: string, obj: Partial<T>, cb: CallBack<T>) => void
+    remove: (id: withId['id'], cb: CallBack<void>) => void
+    update: (id: withId['id'], obj: Partial<T>, cb: CallBack<T>) => void
     list: (cb: CallBack<T[]>) => void
-    exists: (id: string) => boolean
+    exists: (id: withId['id']) => boolean
 }
 
-const nameFromId = (id: string) => `${id}.json`
+const nameFromId = (id: withId['id']) => `${id}.json`
 
 
 // TODO: Error Handling
 // TODO: Adding Custom De/Serializer
 // TODO: Adding Validators
-class LocalJsonDb<T extends jsonWithId> implements DB<T> {
+class LocalJsonDb<T extends withId> implements DB<T> {
     path: string;
     constructor(path: string) {
         this.path = path
     }
 
 
-    exists = (id: string) => existsSync(join(this.path, nameFromId(id)))
+    exists = (id: withId['id']) => existsSync(join(this.path, nameFromId(id)))
 
 
     insert = (json: T, cb: CallBack<T>) => {
@@ -48,7 +48,7 @@ class LocalJsonDb<T extends jsonWithId> implements DB<T> {
     }
 
 
-    get = (id: string, cb: CallBack<T>) => this.exists(id) ?
+    get = (id: withId['id'], cb: CallBack<T>) => this.exists(id) ?
         readFile(
             join(this.path, nameFromId(id)),
             'utf-8',
@@ -66,12 +66,12 @@ class LocalJsonDb<T extends jsonWithId> implements DB<T> {
         cb(Error('Doesn\'t exist'))
 
 
-    remove = (id: string, cb: CallBack<void>) => this.exists(id) ?
+    remove = (id: withId['id'], cb: CallBack<void>) => this.exists(id) ?
         rm(join(this.path, nameFromId(id)), (err) => cb(err)) :
         cb(Error('Doesn\'t exist'))
 
 
-    update = (id: string, json: Partial<T>, cb: CallBack<T>) => this.exists(id) ?
+    update = (id: withId['id'], json: Partial<T>, cb: CallBack<T>) => this.exists(id) ?
         this.get(id, (err, oldObj) => {
             if (err) {
                 cb(err)
@@ -97,4 +97,80 @@ class LocalJsonDb<T extends jsonWithId> implements DB<T> {
         })
     }
 }
-export { LocalJsonDb, DB }
+
+class LocalObjectDb<T extends withId> implements DB<T> {
+
+    filePath: string
+    file: T[]
+    constructor(path: string, fileName: string) {
+        this.filePath = join(path, nameFromId(fileName))
+        if (!existsSync(this.filePath)) {
+            writeFileSync(this.filePath, '[]')
+            this.file = []
+            return
+        }
+        this.file = JSON.parse(readFileSync(this.filePath, 'utf-8'))
+    }
+
+    private updateFile = (cb: CallBack<void>) => {
+        writeFile(this.filePath, JSON.stringify(this.file), cb)
+    }
+
+    exists = (id: withId['id']) => {
+        return !!this.file.find(obj => obj.id === id)
+    };
+
+
+    insert = (obj: T, cb: CallBack<T>) => {
+        if (this.exists(obj.id)) {
+            cb(new Error('object already exist'))
+            return
+        }
+        this.file.push(obj)
+        this.updateFile((err) => {
+            err ? cb(err) : cb(null, obj)
+        })
+    };
+
+
+    get = (id: withId['id'], cb: CallBack<T>) => {
+        const obj = this.file.find(obj => obj.id === id)
+        obj ? cb(null, obj) : cb(new Error('object doesn\'t exist'))
+    };
+
+
+    set = (obj: T, cb: CallBack<T>) => {
+        const index = this.file.findIndex(old => old.id === obj.id)
+        if (index < 0) {
+            cb(new Error('obj doesn\'t exist'))
+            return
+        }
+        this.file[index] = obj
+        this.updateFile((err) => err ? cb(err) : cb(null, obj))
+    };
+
+
+    update = (id: withId['id'], obj: Partial<T>, cb: CallBack<T>) => {
+        const index = this.file.findIndex(old => old.id === obj.id)
+        if (index < 0) {
+            cb(new Error('obj doesn\'t exist'))
+            return
+        }
+        this.file[index] = { ...this.file[index], ...obj }
+        this.updateFile((err) => err ? cb(err) : cb(null, this.file[index]))
+    };
+
+
+    list = (cb: CallBack<T[]>) => {
+        cb(null, this.file)
+    };
+
+
+    remove = (id: withId['id'], cb: CallBack<void>) => {
+        this.file = this.file.filter(obj => obj.id !== id)
+        this.updateFile((err) => err ? cb(err) : cb(null))
+    };
+
+}
+
+export { LocalJsonDb, LocalObjectDb, DB }
