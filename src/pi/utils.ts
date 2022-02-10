@@ -2,9 +2,10 @@ import later, { ScheduleData, setInterval, Timer } from "later"
 import moment, { Duration } from "moment"
 import { config } from "./gpio"
 
-type ID = string
+type ID = string | number
 
 type Pin = {
+    id: ID,
     channel: number,
     label: string,
 }
@@ -41,7 +42,7 @@ const validatePin = (p?: Partial<Pin>): Pin => {
         const { label, channel } = p
         const pins: number[] = config.validPins
 
-        if (channel && label && channel in pins) return { channel, label }
+        if (channel && label && channel in pins) return { channel, label, id: channel }
 
         throw Error(`Invalid Pin channel`)
     }
