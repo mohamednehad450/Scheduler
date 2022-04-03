@@ -17,5 +17,6 @@
         24,
         23
     ],
-    "boardMode": "mode_bcm"
+    "boardMode": "mode_bcm",
+    "openPinState": "HIGH"
 }

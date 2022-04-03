@@ -12,8 +12,11 @@ interface GpioManager {
     rest: (cb: CallBack<void>) => void
 }
 
-const OFF = true
-const ON = false
+// Used to implement the 'Normally open pin state'
+const pState: { [key in GpioConfig['openPinState']]: boolean } = {
+    HIGH: true,
+    LOW: false,
+}
 
 class PinManager implements GpioManager {
 
@@ -49,7 +52,7 @@ class PinManager implements GpioManager {
                 cb(err)
                 return
             }
-            p && this.gpio.read(p.channel, (err, high) => cb(err, !high))
+            p && this.gpio.read(p.channel, (err, high) => cb(err, pState[this.config.openPinState] ? high : !high))
         })
     };
 
@@ -59,7 +62,7 @@ class PinManager implements GpioManager {
                 cb(err)
                 return
             }
-            p && this.gpio.write(p.channel, ON, cb)
+            p && this.gpio.write(p.channel, pState[this.config.openPinState], cb)
         })
     }
 
@@ -69,7 +72,7 @@ class PinManager implements GpioManager {
                 cb(err)
                 return
             }
-            p && this.gpio.write(p.channel, OFF, cb)
+            p && this.gpio.write(p.channel, !pState[this.config.openPinState], cb)
         })
     };
 
