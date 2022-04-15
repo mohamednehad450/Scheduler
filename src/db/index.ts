@@ -1,25 +1,25 @@
-import { ID, Pin, Schedule } from "../pi/utils"
+import { ID, Pin, SequenceData } from "../pi/utils"
 import { LocalJsonDb, LocalObjectDb } from "./db"
 
 type AppDB = {
-    schedulesDb: LocalJsonDb<Schedule>,
+    sequencesDb: LocalJsonDb<SequenceData>,
     pinsDb: LocalObjectDb<Pin>
-    activeSchedules: LocalObjectDb<{ id: ID }>
+    activeSequences: LocalObjectDb<{ id: ID }>
 }
 
 const paths = {
-    SCHEDULES: 'schedules/',
+    SEQUENCES: 'sequences/',
     OBJECTS: 'objects/'
 }
 
 
-const schedulesDb = new LocalJsonDb<Schedule>(paths.SCHEDULES)
+const sequencesDb = new LocalJsonDb<SequenceData>(paths.SEQUENCES)
 const pinsDb = new LocalObjectDb<Pin>(paths.OBJECTS, 'pins')
-const activeSchedules = new LocalObjectDb<{ id: ID }>(paths.OBJECTS, 'activeSchedules')
+const activeSequences = new LocalObjectDb<{ id: ID }>(paths.OBJECTS, 'activeSequences')
 
 const appDb: AppDB = {
-    schedulesDb,
+    sequencesDb,
     pinsDb,
-    activeSchedules
+    activeSequences
 }
 export { appDb, AppDB }

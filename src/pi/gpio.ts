@@ -2,12 +2,10 @@ import gpio from 'rpi-gpio'
 import { readFileSync } from 'fs'
 
 type Gpio = typeof gpio
-type PinStatus = 'HIGH' | 'LOW'
 
 type GpioConfig = {
     validPins: number[],
     boardMode: typeof gpio.MODE_BCM,
-    openPinState: PinStatus
 }
 
 const config: GpioConfig = JSON.parse(readFileSync('config.json', 'utf8'))

@@ -1,13 +1,13 @@
 import { Express } from 'express'
 import { AppDB } from '../db'
 import gpio, { config } from '../pi/gpio'
-import PinManager from '../pi/PinManager'
-import Scheduler from '../pi/Scheduler'
+import { PinManager, Scheduler } from '../pi'
 
 
 const routes = {
-    RUN: "/actions/run",
-    ACTIVATE: '/actions/activate',
+    RUN: "/sequence",
+    ACTIVATE: '/scheduler',
+    PM: '/pm'
 }
 
 
@@ -21,7 +21,10 @@ export default (app: Express, db: AppDB) => {
         scheduler.run(req.body.id, (err) => {
             if (err) {
                 res.status(400)
+                res.send()
+                return
             }
+            res.status(204)
             res.send()
         })
     })
@@ -32,7 +35,10 @@ export default (app: Express, db: AppDB) => {
         scheduler.stop(req.body.id || 'EMPTY_ID', (err) => {
             if (err) {
                 res.status(400)
+                res.send()
+                return
             }
+            res.status(204)
             res.send()
         })
     })
@@ -40,9 +46,11 @@ export default (app: Express, db: AppDB) => {
 
     // Running schedules
     app.get(routes.RUN, (req, res) => {
-        scheduler.running((err, ids) => {
+        pinManager.running((err, ids) => {
             if (err) {
                 res.status(500)
+                res.send()
+                return
             }
             res.json(ids || [])
         })
@@ -54,7 +62,10 @@ export default (app: Express, db: AppDB) => {
         scheduler.activate(req.body.id || 'EMPTY_ID', (err) => {
             if (err) {
                 res.status(400)
+                res.send()
+                return
             }
+            res.status(204)
             res.send()
         })
     })
@@ -65,7 +76,10 @@ export default (app: Express, db: AppDB) => {
         scheduler.deactivate(req.body.id || 'EMPTY_ID', (err) => {
             if (err) {
                 res.status(400)
+                res.send()
+                return
             }
+            res.status(204)
             res.send()
         })
     })
@@ -73,11 +87,23 @@ export default (app: Express, db: AppDB) => {
 
     // Active schedules
     app.get(routes.ACTIVATE, (req, res) => {
-        scheduler.activeSchedules((err, ids) => {
+        pinManager.running((err, ids) => {
             if (err) {
                 res.status(500)
+                return
             }
             res.json(ids || [])
+        })
+    })
+
+    // Pins status
+    app.get(routes.PM, (req, res) => {
+        pinManager.pinsStatus((err, pins) => {
+            if (err) {
+                res.status(500)
+                return
+            }
+            res.json(pins || [])
         })
     })
 }

@@ -1,22 +1,42 @@
+import moment, { Duration } from "moment";
 import { AppDB } from "../db";
 import { Gpio, GpioConfig } from "./gpio";
-import { ID, Pin, validatePin } from "./utils";
+import { ID, Pin, SequenceData } from "./utils";
+
 
 type CallBack<T> = (err: Error | null | undefined, v?: T) => void
 
 interface GpioManager {
     isRunning: (id: ID, cb: CallBack<boolean>) => void
-    run: (id: ID, cb: CallBack<void>) => void
+    run: (data: SequenceData, cb: CallBack<void>) => void
+    running: (cb: CallBack<ID[]>) => void
     stop: (id: ID, cb: CallBack<void>) => void
     pinsStatus: (cb: CallBack<{ p: Pin, running: boolean, err: Error | null | undefined }[]>) => void
     rest: (cb: CallBack<void>) => void
+
 }
 
 // Used to implement the 'Normally open pin state'
-const pState: { [key in GpioConfig['openPinState']]: boolean } = {
+const pState: { [key in Pin['onState']]: boolean } = {
     HIGH: true,
     LOW: false,
 }
+
+type RunOrder = {
+    pin: Pin
+    duration: Duration
+    offset: Duration
+    startTimer: NodeJS.Timeout
+    closeTimer: NodeJS.Timeout
+}
+
+type SequenceOrder = {
+    runOrders: RunOrder[]
+    startTime: Date
+    clearTimer: NodeJS.Timeout
+}
+
+
 
 class PinManager implements GpioManager {
 
@@ -24,56 +44,100 @@ class PinManager implements GpioManager {
     config: GpioConfig
     db: AppDB['pinsDb']
 
-    constructor(gpio: Gpio, config: GpioConfig, db: AppDB['pinsDb']) {
+    reservedPins: Map<Pin['channel'], ID>
 
+    orders: Map<ID, SequenceOrder>
+
+    constructor(gpio: Gpio, config: GpioConfig, db: AppDB['pinsDb']) {
         this.config = config
         this.gpio = gpio
         this.db = db
+        this.reservedPins = new Map()
+        this.orders = new Map()
 
         const { boardMode } = this.config
 
         this.db.list((err, pins) => {
             if (err) {
-                //TODO
+                // TODO
                 return
             }
             this.gpio.setMode(boardMode)
-            pins?.forEach((p) => gpio.setup(p.channel, gpio.DIR_HIGH))
+            pins?.forEach(
+                (p) => gpio.setup(
+                    p.channel,
+                    p.onState === "LOW" ? gpio.DIR_HIGH : gpio.DIR_LOW)
+            )
         })
 
 
     }
 
-
-
     isRunning = (id: ID, cb: CallBack<boolean>) => {
-        this.db.get(id, (err, p) => {
-            if (err) {
-                cb(err)
-                return
-            }
-            p && this.gpio.read(p.channel, (err, high) => cb(err, pState[this.config.openPinState] ? high : !high))
-        })
+        cb(null, this.orders.has(id))
     };
 
-    run = (id: ID, cb: CallBack<void>) => {
-        this.db.get(id, (err, p) => {
-            if (err) {
-                cb(err)
+    running = (cb: CallBack<ID[]>) => {
+        cb(null, [...this.orders.keys()])
+    }
+
+    run = (data: SequenceData, cb: CallBack<void>) => {
+        for (const p of data.pins) {
+            const id = this.reservedPins.get(p.pin.channel)
+            if (id) {
+                cb(new Error(`channel ${p.pin.channel} is reserved by id: (${id})`))
                 return
             }
-            p && this.gpio.write(p.channel, pState[this.config.openPinState], cb)
+        }
+
+        data.pins.map(p => this.reservedPins.set(p.pin.channel, data.id))
+
+        const time = new Date()
+        const runOrders: RunOrder[] = data.pins.map(p => {
+            const duration = moment.duration(p.duration)
+            const offset = moment.duration(p.offset)
+            return {
+                pin: p.pin,
+                duration,
+                offset,
+                startTimer: setTimeout(() => {
+                    this.gpio.write(p.pin.channel, pState[p.pin.onState], () => {
+                        // TODO
+                    })
+                }, offset.asMilliseconds()),
+                closeTimer: setTimeout(() => {
+                    this.gpio.write(p.pin.channel, !pState[p.pin.onState], () => {
+                        // TODO
+                    })
+                }, moment.duration(duration).add(offset).asMilliseconds())
+            }
+        })
+        this.orders.set(data.id, {
+            runOrders,
+            startTime: time,
+            clearTimer: setTimeout(
+                () => runOrders.forEach(r => this.reservedPins.delete(r.pin.channel)),
+                Math.max(...runOrders.map(r => moment.duration(r.duration).add(r.offset).asMilliseconds())) + 10
+            )
         })
     }
 
     stop = (id: ID, cb: CallBack<void>) => {
-        this.db.get(id, (err, p) => {
-            if (err) {
-                cb(err)
-                return
-            }
-            p && this.gpio.write(p.channel, !pState[this.config.openPinState], cb)
+        const seqOrder = this.orders.get(id)
+        if (!seqOrder) {
+            cb(null)
+            return
+        }
+        seqOrder.runOrders.forEach(({ startTimer, closeTimer, pin, }) => {
+            clearTimeout(startTimer)
+            clearTimeout(closeTimer)
+            this.gpio.write(pin.channel, !pState[pin.onState], () => { })
+            this.reservedPins.delete(pin.channel)
         })
+        clearTimeout(seqOrder.clearTimer)
+        this.orders.delete(id)
+        cb(null)
+
     };
 
     pinsStatus = (cb: CallBack<{ p: Pin, running: boolean, err: Error | null | undefined }[]>) => {
@@ -95,20 +159,7 @@ class PinManager implements GpioManager {
     };
 
     rest = (cb: CallBack<void>) => {
-        this.gpio.destroy((err) => {
-            if (err) {
-                cb(err)
-                return
-            }
-            this.db.list((err, pins) => {
-                if (err) {
-                    cb(err)
-                    return
-                }
-                this.gpio.setMode(this.config.boardMode)
-                pins && pins.forEach(p => this.gpio.setup(p.channel, this.gpio.DIR_HIGH))
-            })
-        })
+        // TODO
     };
 }
 
