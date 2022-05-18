@@ -65,7 +65,19 @@ class Scheduler implements SchedulerInterface {
             return
         }
 
-        seq.activate(cb)
+        seq.activate((err) => {
+            if (err) {
+                cb(err)
+                return
+            }
+            this.db.activeSequences.insert({ id: seq.data.id }, (err, id) => {
+                if (err) {
+                    cb(err)
+                    return
+                }
+                cb(null)
+            })
+        })
     };
 
 
@@ -82,7 +94,19 @@ class Scheduler implements SchedulerInterface {
             return
         }
 
-        seq.deactivate(cb)
+        seq.deactivate((err) => {
+            if (err) {
+                cb(err)
+                return
+            }
+            this.db.activeSequences.remove(seq.data.id, (err, id) => {
+                if (err) {
+                    cb(err)
+                    return
+                }
+                cb(null)
+            })
+        })
     };
 
 
