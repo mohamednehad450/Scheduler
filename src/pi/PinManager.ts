@@ -128,7 +128,10 @@ class PinManager implements GpioManager {
             runOrders,
             startTime: time,
             clearTimer: setTimeout(
-                () => runOrders.forEach(r => this.reservedPins.delete(r.pin.channel)),
+                () => {
+                    runOrders.forEach(r => this.reservedPins.delete(r.pin.channel))
+                    this.orders.delete(data.id)
+                },
                 Math.max(...runOrders.map(r => moment.duration(r.duration).add(r.offset).asMilliseconds())) + 10
             )
         })
