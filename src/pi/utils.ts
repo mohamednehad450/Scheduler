@@ -59,15 +59,13 @@ const validatePin = (pin: Partial<Pin>): Pin => {
 
     if (!label) throw new Error('Missing label.')
 
-    // HACK: used to skip typing because user might not give the correct type
-    const os: any = onState
-    if (!os || os !== "HIGH" || os !== "LOW") throw new Error('Missing onState.')
+    if (!onState || (onState !== "HIGH" && onState !== "LOW")) throw new Error('Missing onState.')
 
     return {
         channel,
         id,
         label,
-        onState: os,
+        onState,
     }
 }
 
