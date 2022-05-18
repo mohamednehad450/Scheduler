@@ -18,7 +18,7 @@ interface SequenceData {
     name: string
     lastRun?: Date | string
     pins: {
-        pin: Pin
+        channel: Pin['channel']
         duration: string
         offset: string
     }[]
@@ -44,17 +44,31 @@ const validateScheduleData = (sched?: ScheduleData) => {
 }
 
 
-const validatePin = (p?: Partial<Pin>): Pin => {
-    if (p) {
-        const { label, channel, onState } = p
-
-        const pins: number[] = config.validPins
-
-        if (channel && label && onState && channel in pins) return { channel, label, id: channel, onState }
-
-        throw Error(`Invalid Pin channel`)
+const validatePinChannel = (channel: Pin['channel']): Pin['channel'] => {
+    if (channel && channel in config.validPins) {
+        return channel
     }
-    throw Error('Missing Pin')
+    throw Error(`Invalid Pin channel`)
+}
+
+const validatePin = (pin: Partial<Pin>): Pin => {
+    const { channel, label, onState } = pin
+
+    if (!channel || !(channel in config.validPins)) throw new Error('Invalid channel.')
+    const id = channel
+
+    if (!label) throw new Error('Missing label.')
+
+    // HACK: used to skip typing because user might not give the correct type
+    const os: any = onState
+    if (!os || os !== "HIGH" || os !== "LOW") throw new Error('Missing onState.')
+
+    return {
+        channel,
+        id,
+        label,
+        onState: os,
+    }
 }
 
 
@@ -76,11 +90,11 @@ const validateSequenceData = (m: Partial<SequenceData>): SequenceData => {
     const lastRun = !m.lastRun ? undefined : new Date(m.lastRun)
     const pins = Array.isArray(m.pins) ?
         m.pins.map(p => {
-            const pin = validatePin({ ...p.pin, label: p.pin?.label || `UNNAMED PIN: (channel: ${p.pin?.channel})` })
+            const channel = validatePinChannel(p.channel)
             const duration = validateDuration(p.duration)
             const offset = validateDuration(p.offset)
             return {
-                pin,
+                channel,
                 duration,
                 offset
             }

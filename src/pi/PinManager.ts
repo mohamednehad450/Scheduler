@@ -43,7 +43,9 @@ class PinManager implements GpioManager {
     gpio: Gpio
     config: GpioConfig
     db: AppDB['pinsDb']
+    pins: Map<Pin['channel'], Pin>
 
+    // Map of reserved pins channels and the sequence ID
     reservedPins: Map<Pin['channel'], ID>
 
     orders: Map<ID, SequenceOrder>
@@ -52,6 +54,7 @@ class PinManager implements GpioManager {
         this.config = config
         this.gpio = gpio
         this.db = db
+        this.pins = new Map()
         this.reservedPins = new Map()
         this.orders = new Map()
 
@@ -64,9 +67,12 @@ class PinManager implements GpioManager {
             }
             this.gpio.setMode(boardMode)
             pins?.forEach(
-                (p) => gpio.setup(
-                    p.channel,
-                    p.onState === "LOW" ? gpio.DIR_HIGH : gpio.DIR_LOW)
+                (p) => {
+                    gpio.setup(
+                        p.channel,
+                        p.onState === "LOW" ? gpio.DIR_HIGH : gpio.DIR_LOW)
+                    this.pins.set(p.channel, p)
+                }
             )
         })
 
@@ -83,30 +89,36 @@ class PinManager implements GpioManager {
 
     run = (data: SequenceData, cb: CallBack<void>) => {
         for (const p of data.pins) {
-            const id = this.reservedPins.get(p.pin.channel)
-            if (id) {
-                cb(new Error(`channel ${p.pin.channel} is reserved by id: (${id})`))
+            if (this.reservedPins.has(p.channel)) {
+                cb(new Error(`channel ${p.channel} is reserved by id: (${this.reservedPins.get(p.channel)})`))
+                return
+            }
+            if (!this.pins.has(p.channel)) {
+                cb(new Error(`channel ${p.channel} is not defined`))
                 return
             }
         }
 
-        data.pins.map(p => this.reservedPins.set(p.pin.channel, data.id))
+        data.pins.map(p => this.reservedPins.set(p.channel, data.id))
 
         const time = new Date()
         const runOrders: RunOrder[] = data.pins.map(p => {
+            const pin = this.pins.get(p.channel)
+            if (!pin) throw new Error()
+
             const duration = moment.duration(p.duration)
             const offset = moment.duration(p.offset)
             return {
-                pin: p.pin,
+                pin,
                 duration,
                 offset,
                 startTimer: setTimeout(() => {
-                    this.gpio.write(p.pin.channel, pState[p.pin.onState], () => {
+                    this.gpio.write(pin.channel, pState[pin.onState], () => {
                         // TODO
                     })
                 }, offset.asMilliseconds()),
                 closeTimer: setTimeout(() => {
-                    this.gpio.write(p.pin.channel, !pState[p.pin.onState], () => {
+                    this.gpio.write(p.channel, !pState[pin.onState], () => {
                         // TODO
                     })
                 }, moment.duration(duration).add(offset).asMilliseconds())
@@ -147,6 +159,14 @@ class PinManager implements GpioManager {
             err: Error | null | undefined
         }[] = []
         this.db.list((err, pins) => {
+            if (err) {
+                cb(err)
+                return
+            }
+            if (!pins || pins.length === 0) {
+                cb(null, [])
+                return
+            }
             pins && pins.forEach((p) => {
                 this.isRunning(p.id, (err, running) => {
                     err ?
