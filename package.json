@@ -4,7 +4,7 @@
   "description": "",
   "main": "build/index.js",
   "scripts": {
-    "dev": "yarn nodemon -r dotenv/config src/index.ts",
+    "dev": "yarn nodemon -r dotenv/config src/index.ts --ignore sequences/ --ignore objects/",
     "build": "yarn tsc",
     "start": "node built/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
