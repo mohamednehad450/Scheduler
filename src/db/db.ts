@@ -77,10 +77,8 @@ class LocalJsonDb<T extends withId> implements DB<T> {
                 cb(err)
                 return
             }
-            oldObj && cb(null, {
-                ...oldObj,
-                ...json,
-            })
+            oldObj &&
+                this.set({ ...oldObj, ...json, id: oldObj?.id }, cb)
 
         }) :
         cb(Error('Doesn\'t exist'))
