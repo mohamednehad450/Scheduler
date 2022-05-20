@@ -97,7 +97,7 @@ class LocalJsonDb<T extends withId> implements DB<T> {
                 return
             }
             oldObj &&
-                this.set({ ...oldObj, ...json, id: oldObj?.id }, cb)
+                this.set({ ...oldObj, ...json }, cb)
 
         }) :
         cb(Error('Doesn\'t exist'))
@@ -189,7 +189,7 @@ class LocalObjectDb<T extends withId> implements DB<T> {
 
 
     update = (id: withId['id'], obj: Partial<T>, cb: CallBack<T>) => {
-        const index = this.file.findIndex(old => old.id === obj.id)
+        const index = this.file.findIndex(old => old.id === id)
         if (index < 0) {
             cb(new Error('obj doesn\'t exist'))
             return
