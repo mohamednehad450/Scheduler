@@ -1,6 +1,7 @@
 import { v4, } from "uuid"
 import { writeFile, writeFileSync, readdir, readFile, readFileSync, rm, existsSync } from 'fs'
 import { join } from 'path'
+import EventEmitter from "events"
 
 
 export interface withId {
@@ -9,7 +10,7 @@ export interface withId {
 
 type CallBack<T> = (err: Error | undefined | null, t?: T) => void
 
-interface DB<T extends withId> {
+interface DB<T extends withId> extends EventEmitter {
     insert: (obj: Partial<T>, cb: CallBack<T>) => void
     get: (id: withId['id'], cb: CallBack<T>) => void
     set: (obj: Partial<T>, cb: CallBack<T>) => void
@@ -25,12 +26,13 @@ const nameFromId = (id: withId['id']) => `${id}.json`
 // TODO: Error Handling
 // TODO: Adding Custom De/Serializer
 // TODO: Adding Validators
-class LocalJsonDb<T extends withId> implements DB<T> {
+class LocalJsonDb<T extends withId> extends EventEmitter implements DB<T> {
 
     path: string;
     validator: (t: Partial<T>) => T
 
     constructor(path: string, validator: (t: Partial<T>) => T) {
+        super()
         this.path = path
         this.validator = validator
     }
@@ -46,7 +48,14 @@ class LocalJsonDb<T extends withId> implements DB<T> {
             writeFile(
                 join(this.path, nameFromId(obj.id)),
                 JSON.stringify(obj),
-                (err) => cb(err, obj)
+                (err) => {
+                    if (err) {
+                        cb(err)
+                        return
+                    }
+                    cb(null, obj)
+                    this.emit('insert', obj)
+                }
             )
         } catch (error: any) {
             // Validation error
@@ -76,7 +85,14 @@ class LocalJsonDb<T extends withId> implements DB<T> {
             writeFile(
                 join(this.path, nameFromId(json.id)),
                 JSON.stringify(newObj),
-                (err) => cb(err, newObj)
+                (err) => {
+                    if (err) {
+                        cb(err)
+                        return
+                    }
+                    cb(null, newObj)
+                    this.emit('update', newObj)
+                }
             )
         } catch (error: any) {
             // Validation Error
@@ -86,7 +102,14 @@ class LocalJsonDb<T extends withId> implements DB<T> {
     }
 
     remove = (id: withId['id'], cb: CallBack<void>) => this.exists(id) ?
-        rm(join(this.path, nameFromId(id)), (err) => cb(err)) :
+        rm(join(this.path, nameFromId(id)), (err) => {
+            if (err) {
+                cb(err)
+                return
+            }
+            cb(null)
+            this.emit('remove', id)
+        }) :
         cb(Error('Doesn\'t exist'))
 
 
@@ -115,13 +138,14 @@ class LocalJsonDb<T extends withId> implements DB<T> {
     }
 }
 
-class LocalObjectDb<T extends withId> implements DB<T> {
+class LocalObjectDb<T extends withId> extends EventEmitter implements DB<T> {
 
     filePath: string
     file: T[]
     validator: (t: Partial<T>) => T
 
     constructor(path: string, fileName: string, validator: (t: Partial<T>) => T) {
+        super()
         this.filePath = join(path, nameFromId(fileName))
         this.validator = validator
         if (!existsSync(this.filePath)) {
@@ -152,7 +176,12 @@ class LocalObjectDb<T extends withId> implements DB<T> {
             const newObj = this.validator(json)
             this.file.push(newObj)
             this.updateFile((err) => {
-                err ? cb(err) : cb(null, newObj)
+                if (err) {
+                    cb(err)
+                    return
+                }
+                cb(null, newObj)
+                this.emit('insert', newObj)
             })
         } catch (error: any) {
             // Validation Error
@@ -180,7 +209,14 @@ class LocalObjectDb<T extends withId> implements DB<T> {
         try {
             const newObj = this.validator(obj)
             this.file[index] = newObj
-            this.updateFile((err) => err ? cb(err) : cb(null, newObj))
+            this.updateFile((err) => {
+                if (err) {
+                    cb(err)
+                    return
+                }
+                cb(null, newObj)
+                this.emit('update', newObj)
+            })
         } catch (error: any) {
             // Validation error
             cb(error)
@@ -205,7 +241,14 @@ class LocalObjectDb<T extends withId> implements DB<T> {
 
     remove = (id: withId['id'], cb: CallBack<void>) => {
         this.file = this.file.filter(obj => obj.id !== id)
-        this.updateFile((err) => err ? cb(err) : cb(null))
+        this.updateFile((err) => {
+            if (err) {
+                cb(err)
+                return
+            }
+            cb(null)
+            this.emit('remove', id)
+        })
     };
 
 }
