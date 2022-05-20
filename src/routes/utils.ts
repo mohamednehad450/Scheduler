@@ -7,7 +7,7 @@ import { DB, withId } from "../db/db"
 
 
 
-export const CRUD = <T extends withId>(app: Express, db: DB<T>, route: string, validator: (t: Partial<T>) => T) => {
+export const CRUD = <T extends withId>(app: Express, db: DB<T>, route: string) => {
 
     // List all objects
     app.get(route + 's', (req, res) => {
@@ -41,24 +41,19 @@ export const CRUD = <T extends withId>(app: Express, db: DB<T>, route: string, v
 
     // Create new object
     app.post(route, (req, res) => {
-        try {
-            db.insert(validator(req.body), (err, m) => {
-                if (err) {
-                    res.status(500)
-                    res.send(err)
-                    return
-                }
-                if (m) {
-                    res.json(m)
-                } else {
-                    res.status(400)
-                    res.send(err)
-                }
-            })
-        } catch (error: any) {
-            res.status(400)
-            res.json(error)
-        }
+        db.insert(req.body, (err, m) => {
+            if (err) {
+                res.status(400)
+                res.send(err)
+                return
+            }
+            if (m) {
+                res.json(m)
+            } else {
+                res.status(500)
+                res.send()
+            }
+        })
     })
 
     // Delete an object
@@ -77,18 +72,19 @@ export const CRUD = <T extends withId>(app: Express, db: DB<T>, route: string, v
 
     // Updates an object
     app.patch(route, (req, res) => {
-        try {
-            db.set(validator(req.body), (err, m) => {
-                if (err) {
-                    res.status(400)
-                    res.json(err)
-                    return
-                }
-                m && res.json(m)
-            })
-        } catch (error: any) {
-            res.status(400)
-            res.json(error)
-        }
+        db.set(req.body, (err, m) => {
+            if (err) {
+                res.status(400)
+                res.json(err)
+                return
+            }
+            if (m) {
+                res.json(m)
+                return
+            }
+            res.status(500)
+            res.send()
+
+        })
     })
 }

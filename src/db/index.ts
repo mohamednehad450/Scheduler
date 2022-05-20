@@ -1,4 +1,4 @@
-import { ID, Pin, SequenceData } from "../pi/utils"
+import { ID, Pin, SequenceData, validateSequenceData, validatePin, validateUUID } from "../pi/utils"
 import { LocalJsonDb, LocalObjectDb } from "./db"
 
 type AppDB = {
@@ -13,9 +13,9 @@ const paths = {
 }
 
 
-const sequencesDb = new LocalJsonDb<SequenceData>(paths.SEQUENCES)
-const pinsDb = new LocalObjectDb<Pin>(paths.OBJECTS, 'pins')
-const activeSequences = new LocalObjectDb<{ id: ID }>(paths.OBJECTS, 'activeSequences')
+const sequencesDb = new LocalJsonDb<SequenceData>(paths.SEQUENCES, validateSequenceData)
+const pinsDb = new LocalObjectDb<Pin>(paths.OBJECTS, 'pins', validatePin)
+const activeSequences = new LocalObjectDb<{ id: ID }>(paths.OBJECTS, 'activeSequences', ({ id }: { id?: ID }) => ({ id: validateUUID(id) }))
 
 const appDb: AppDB = {
     sequencesDb,
