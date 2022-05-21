@@ -2,7 +2,7 @@
 import { AppDB } from '../db'
 import PinManager from './PinManager'
 import Sequence from './Sequence'
-import { ID, } from './utils'
+import { ID, SequenceData, } from './utils'
 
 type CallBack<T> = (err: Error | null | undefined, v?: T) => void
 
@@ -34,6 +34,60 @@ class Scheduler implements SchedulerInterface {
                 return
             }
             seqData && seqData.forEach(d => this.sequences.set(d.id, new Sequence(d, this.pinManager)))
+
+            // New sequence added
+            db.sequencesDb.addListener('insert', (newSeq: SequenceData) => {
+                this.sequences.set(newSeq.id, new Sequence(newSeq, this.pinManager))
+            })
+
+            // Old sequence has been updated
+            db.sequencesDb.addListener('update', (seq: SequenceData) => {
+                const oldSeq = this.sequences.get(seq.id)
+                const newSeq = new Sequence(seq, this.pinManager)
+                const isActive = oldSeq?.isActive()
+                const isRunning = oldSeq?.isRunning()
+                if (isActive) {
+                    oldSeq?.deactivate((err) => {
+                        if (err) {
+                            // TODO
+                            return
+                        }
+                        newSeq.activate(err => {
+                            // TODO
+                        })
+                    })
+
+                }
+                if (isRunning) {
+                    oldSeq?.stop((err) => {
+                        if (err) {
+                            // TODO
+                            return
+                        }
+                        newSeq.run(err => {
+                            // TODO
+                        })
+                    })
+                }
+                this.sequences.set(seq.id, newSeq)
+            })
+
+            // Old sequence has been removed
+            db.sequencesDb.addListener('remove', (seqId: SequenceData['id']) => {
+                const oldSeq = this.sequences.get(seqId)
+                if (oldSeq?.isActive()) {
+                    oldSeq?.deactivate((err) => {
+                        // TODO
+                    })
+                }
+                if (oldSeq?.isRunning()) {
+                    oldSeq?.stop((err) => {
+                        // TODO
+                    })
+                }
+                this.sequences.delete(seqId)
+            })
+
 
             db.activeSequences.list((err, ids) => {
                 if (err) {
