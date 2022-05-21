@@ -74,6 +74,45 @@ class PinManager implements GpioManager {
                     this.pins.set(p.channel, p)
                 }
             )
+
+            // New pin has been defined
+            db.addListener('insert', (pin: Pin) => {
+                gpio.setup(
+                    pin.channel,
+                    pin.onState === "LOW" ? gpio.DIR_HIGH : gpio.DIR_LOW)
+                this.pins.set(pin.channel, pin)
+            })
+
+            // Old pin has been updated
+            db.addListener('update', (newPin: Pin) => {
+                const id = this.reservedPins.get(newPin.channel)
+                if (id) {
+                    this.stop(id, (err) => {
+                        if (err) {
+                            // TODO
+                            return
+                        }
+                        this.pins.set(newPin.channel, newPin)
+                    })
+                    return
+                }
+                this.pins.set(newPin.channel, newPin)
+            })
+            db.addListener('remove', (pinId: Pin['id']) => {
+                const channel = Number(pinId)
+                const id = this.reservedPins.get(channel)
+                if (id) {
+                    this.stop(id, (err) => {
+                        if (err) {
+                            // TODO
+                            return
+                        }
+                        this.pins.delete(channel)
+                    })
+                    return
+                }
+                this.pins.delete(channel)
+            })
         })
 
 
