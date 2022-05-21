@@ -2,7 +2,7 @@
 import { AppDB } from '../db'
 import PinManager from './PinManager'
 import Sequence from './Sequence'
-import { ID, SequenceData, } from './utils'
+import { ID, Pin, SequenceData, } from './utils'
 
 type CallBack<T> = (err: Error | null | undefined, v?: T) => void
 
@@ -86,6 +86,20 @@ class Scheduler implements SchedulerInterface {
                     })
                 }
                 this.sequences.delete(seqId)
+            })
+
+            db.pinsDb.addListener('remove', (pinId: Pin['id']) => {
+                const channel = Number(pinId)
+                for (const id of this.sequences.keys()) {
+                    const seq = this.sequences.get(id)
+                    if (seq?.data.pins.some((p) => p.channel === channel)) {
+                        const newPins = seq.data.pins.filter((p) => p.channel !== channel)
+                        const newSeqData: SequenceData = { ...seq.data, pins: newPins }
+                        db.sequencesDb.set(newSeqData, (err, seqData) => {
+                            // TODO
+                        })
+                    }
+                }
             })
 
 
