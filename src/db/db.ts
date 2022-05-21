@@ -75,15 +75,15 @@ class LocalJsonDb<T extends withId> extends EventEmitter implements DB<T> {
 
     set = (json: Partial<T>, cb: CallBack<T>) => {
 
-        if (!json.id || !this.exists(json.id)) {
-            cb(Error('Doesn\'t exist'))
-            return
-        }
-
         try {
             const newObj = this.validator(json)
+
+            if (!newObj.id || !this.exists(newObj.id)) {
+                cb(Error('Doesn\'t exist'))
+                return
+            }
             writeFile(
-                join(this.path, nameFromId(json.id)),
+                join(this.path, nameFromId(newObj.id)),
                 JSON.stringify(newObj),
                 (err) => {
                     if (err) {
@@ -120,7 +120,7 @@ class LocalJsonDb<T extends withId> extends EventEmitter implements DB<T> {
                 return
             }
             oldObj &&
-                this.set({ ...oldObj, ...json }, cb)
+                this.set({ ...oldObj, ...json, id }, cb)
 
         }) :
         cb(Error('Doesn\'t exist'))
@@ -167,13 +167,14 @@ class LocalObjectDb<T extends withId> extends EventEmitter implements DB<T> {
 
     insert = (json: Partial<T>, cb: CallBack<T>) => {
 
-        if (this.exists(json.id || '')) {
-            cb(new Error('object already exist'))
-            return
-        }
-
         try {
             const newObj = this.validator(json)
+
+            if (this.exists(newObj.id)) {
+                cb(new Error('object already exist'))
+                return
+            }
+
             this.file.push(newObj)
             this.updateFile((err) => {
                 if (err) {
@@ -199,15 +200,15 @@ class LocalObjectDb<T extends withId> extends EventEmitter implements DB<T> {
 
 
     set = (obj: Partial<T>, cb: CallBack<T>) => {
-
-        const index = this.file.findIndex(old => old.id === obj.id)
-        if (index < 0) {
-            cb(new Error('obj doesn\'t exist'))
-            return
-        }
-
         try {
+
             const newObj = this.validator(obj)
+
+            const index = this.file.findIndex(old => old.id === newObj.id)
+            if (index < 0) {
+                cb(new Error('Object doesn\'t exist'))
+                return
+            }
             this.file[index] = newObj
             this.updateFile((err) => {
                 if (err) {
@@ -227,10 +228,10 @@ class LocalObjectDb<T extends withId> extends EventEmitter implements DB<T> {
     update = (id: withId['id'], obj: Partial<T>, cb: CallBack<T>) => {
         const index = this.file.findIndex(old => old.id === id)
         if (index < 0) {
-            cb(new Error('obj doesn\'t exist'))
+            cb(new Error('Object doesn\'t exist'))
             return
         }
-        this.set({ ...this.file[index], ...obj }, cb)
+        this.set({ ...this.file[index], ...obj, id }, cb)
     };
 
 
