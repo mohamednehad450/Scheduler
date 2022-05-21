@@ -139,17 +139,11 @@ class Scheduler implements SchedulerInterface {
             return
         }
 
-        seq.isRunning((err, running) => {
-            if (err) {
-                cb(err)
-                return
-            }
-            if (running) {
-                cb(null)
-                return
-            }
-            seq.run(cb)
-        })
+        if (seq.isRunning()) {
+            cb(null)
+            return
+        }
+        seq.run(cb)
     }
 
 
@@ -161,7 +155,7 @@ class Scheduler implements SchedulerInterface {
             cb(new Error('Missing sequence or invalid sequence ID'))
             return
         }
-        seq.isRunning(cb)
+        return seq.isRunning()
     }
 
     stop = (id: ID, cb: CallBack<void>) => {
@@ -172,17 +166,12 @@ class Scheduler implements SchedulerInterface {
             return
         }
 
-        seq.isRunning((err, running) => {
-            if (err) {
-                cb(err)
-                return
-            }
-            if (!running) {
-                cb(null)
-                return
-            }
-            seq.stop(cb)
-        })
+        if (seq.isRunning()) {
+            cb(null)
+            return
+        }
+
+        seq.stop(cb)
     }
 
 }

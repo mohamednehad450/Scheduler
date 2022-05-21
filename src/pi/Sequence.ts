@@ -29,8 +29,8 @@ class Sequence {
     }
 
 
-    isRunning = (cb: CallBack<boolean>) => {
-        this.pm.isRunning(this.data.id, cb)
+    isRunning = () => {
+        return this.pm.isRunning(this.data.id)
     }
 
     activate = (cb: CallBack<void>) => {

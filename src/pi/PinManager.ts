@@ -7,7 +7,7 @@ import { ID, Pin, SequenceData } from "./utils";
 type CallBack<T> = (err: Error | null | undefined, v?: T) => void
 
 interface GpioManager {
-    isRunning: (id: ID, cb: CallBack<boolean>) => void
+    isRunning: (id: ID,) => boolean
     run: (data: SequenceData, cb: CallBack<void>) => void
     running: (cb: CallBack<ID[]>) => void
     stop: (id: ID, cb: CallBack<void>) => void
@@ -79,8 +79,8 @@ class PinManager implements GpioManager {
 
     }
 
-    isRunning = (id: ID, cb: CallBack<boolean>) => {
-        cb(null, this.orders.has(id))
+    isRunning = (id: ID) => {
+        return this.orders.has(id)
     };
 
     running = (cb: CallBack<ID[]>) => {
@@ -171,10 +171,10 @@ class PinManager implements GpioManager {
                 return
             }
             pins && pins.forEach((p) => {
-                this.isRunning(p.id, (err, running) => {
+                this.gpio.read(p.channel, (err, HIGH) => {
                     err ?
                         status.push({ p, running: false, err: err }) :
-                        status.push({ p, running: !!running, err: null })
+                        status.push({ p, running: p.onState === "HIGH" ? !!HIGH : !HIGH, err: null })
                     status.length === pins.length && cb(null, status)
                 })
             })
