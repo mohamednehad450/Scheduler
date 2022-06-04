@@ -234,7 +234,7 @@ class Scheduler implements SchedulerInterface {
             return
         }
 
-        if (seq.isRunning()) {
+        if (!seq.isRunning()) {
             cb(null)
             return
         }
