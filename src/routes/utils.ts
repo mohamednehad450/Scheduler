@@ -3,11 +3,7 @@ import { Express } from 'express'
 import { DB, withId } from "../db/db"
 
 
-
-
-
-
-export const CRUD = <T extends withId>(app: Express, db: DB<T>, route: string) => {
+export const CRUD = <K, T extends withId<K>>(app: Express, db: DB<K, T>, route: string) => {
 
     // List all objects
     app.get(route + 's', (req, res) => {
