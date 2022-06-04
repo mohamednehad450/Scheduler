@@ -1,16 +1,16 @@
 import moment, { Duration } from "moment";
 import { AppDB } from "../db";
 import { Gpio, GpioConfig } from "./gpio";
-import { ID, Pin, SequenceData } from "./utils";
+import { Pin, SequenceData } from "./utils";
 
 
 type CallBack<T> = (err: Error | null | undefined, v?: T) => void
 
 interface GpioManager {
-    isRunning: (id: ID,) => boolean
+    isRunning: (id: SequenceData['id'],) => boolean
     run: (data: SequenceData, cb: CallBack<void>) => void
-    running: (cb: CallBack<ID[]>) => void
-    stop: (id: ID, cb: CallBack<void>) => void
+    running: (cb: CallBack<SequenceData['id'][]>) => void
+    stop: (id: SequenceData['id'], cb: CallBack<void>) => void
     pinsStatus: (cb: CallBack<{ p: Pin, running: boolean, err: Error | null | undefined }[]>) => void
     rest: (cb: CallBack<void>) => void
 
@@ -46,9 +46,9 @@ class PinManager implements GpioManager {
     pins: Map<Pin['channel'], Pin>
 
     // Map of reserved pins channels and the sequence ID
-    reservedPins: Map<Pin['channel'], ID>
+    reservedPins: Map<Pin['channel'], SequenceData['id']>
 
-    orders: Map<ID, SequenceOrder>
+    orders: Map<SequenceData['id'], SequenceOrder>
 
     constructor(gpio: Gpio, config: GpioConfig, db: AppDB['pinsDb']) {
         this.config = config
@@ -118,11 +118,11 @@ class PinManager implements GpioManager {
 
     }
 
-    isRunning = (id: ID) => {
+    isRunning = (id: SequenceData['id']) => {
         return this.orders.has(id)
     };
 
-    running = (cb: CallBack<ID[]>) => {
+    running = (cb: CallBack<SequenceData['id'][]>) => {
         cb(null, [...this.orders.keys()])
     }
 
@@ -176,7 +176,7 @@ class PinManager implements GpioManager {
         })
     }
 
-    stop = (id: ID, cb: CallBack<void>) => {
+    stop = (id: SequenceData['id'], cb: CallBack<void>) => {
         const seqOrder = this.orders.get(id)
         if (!seqOrder) {
             cb(null)
