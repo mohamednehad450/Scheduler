@@ -2,23 +2,23 @@
 import { AppDB } from '../db'
 import PinManager from './PinManager'
 import Sequence from './Sequence'
-import { ID, Pin, SequenceData, } from './utils'
+import { Pin, SequenceData, } from './utils'
 
 type CallBack<T> = (err: Error | null | undefined, v?: T) => void
 
 interface SchedulerInterface {
-    activate: (id: ID, cb: CallBack<void>) => void
-    deactivate: (id: ID, cb: CallBack<void>) => void
-    isActive: (id: ID, cb: CallBack<boolean>) => void
-    run: (id: ID, cb: CallBack<void>) => void
-    stop: (id: ID, cb: CallBack<void>) => void
-    isRunning: (id: ID, cb: CallBack<boolean>) => void
+    activate: (id: SequenceData['id'], cb: CallBack<void>) => void
+    deactivate: (id: SequenceData['id'], cb: CallBack<void>) => void
+    isActive: (id: SequenceData['id'], cb: CallBack<boolean>) => void
+    run: (id: SequenceData['id'], cb: CallBack<void>) => void
+    stop: (id: SequenceData['id'], cb: CallBack<void>) => void
+    isRunning: (id: SequenceData['id'], cb: CallBack<boolean>) => void
 }
 
 class Scheduler implements SchedulerInterface {
 
     pinManager: PinManager
-    sequences: Map<ID, Sequence>
+    sequences: Map<SequenceData['id'], Sequence>
     db: AppDB
 
 
@@ -119,7 +119,7 @@ class Scheduler implements SchedulerInterface {
     }
 
 
-    activate = (id: ID, cb: CallBack<void>) => {
+    activate = (id: SequenceData['id'], cb: CallBack<void>) => {
 
         const seq = this.sequences.get(id)
 
@@ -149,7 +149,7 @@ class Scheduler implements SchedulerInterface {
     };
 
 
-    deactivate = (id: ID, cb: CallBack<void>) => {
+    deactivate = (id: SequenceData['id'], cb: CallBack<void>) => {
         const seq = this.sequences.get(id)
 
         if (!seq) {
@@ -178,7 +178,7 @@ class Scheduler implements SchedulerInterface {
     };
 
 
-    isActive = (id: ID, cb: CallBack<boolean>) => {
+    isActive = (id: SequenceData['id'], cb: CallBack<boolean>) => {
         const seq = this.sequences.get(id)
 
         if (!seq) {
@@ -190,7 +190,7 @@ class Scheduler implements SchedulerInterface {
     }
 
 
-    active = (cb: CallBack<ID[]>) => {
+    active = (cb: CallBack<SequenceData['id'][]>) => {
         cb(null,
             [...this.sequences.entries()]
                 .filter(([_, seq]) => seq.isActive())
@@ -199,7 +199,7 @@ class Scheduler implements SchedulerInterface {
     }
 
 
-    run = (id: ID, cb: CallBack<void>) => {
+    run = (id: SequenceData['id'], cb: CallBack<void>) => {
         const seq = this.sequences.get(id)
 
         if (!seq) {
@@ -216,7 +216,7 @@ class Scheduler implements SchedulerInterface {
 
 
 
-    isRunning = (id: ID, cb: CallBack<boolean>) => {
+    isRunning = (id: SequenceData['id'], cb: CallBack<boolean>) => {
         const seq = this.sequences.get(id)
 
         if (!seq) {
@@ -226,7 +226,7 @@ class Scheduler implements SchedulerInterface {
         return seq.isRunning()
     }
 
-    stop = (id: ID, cb: CallBack<void>) => {
+    stop = (id: SequenceData['id'], cb: CallBack<void>) => {
         const seq = this.sequences.get(id)
 
         if (!seq) {
