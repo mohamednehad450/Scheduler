@@ -2,18 +2,17 @@ import later, { ScheduleData } from "later"
 import moment from "moment"
 import { config } from "./gpio"
 
-type ID = string | number
 type CallBack<T> = (err: Error | null | undefined, v?: T) => void
 
 type Pin = {
-    id: ID,
+    id: number,
     channel: number,
     label: string,
     onState: "HIGH" | "LOW",
 }
 
 interface SequenceData {
-    id: ID
+    id: string
     schedule: ScheduleData
     name: string
     lastRun?: Date | string
@@ -26,7 +25,7 @@ interface SequenceData {
 
 
 
-const validateUUID = (id?: ID) => {
+const validateUUID = (id?: string) => {
 
     if (id) {
         return id
@@ -108,4 +107,4 @@ const validateSequenceData = (m: Partial<SequenceData>): SequenceData => {
 
 
 export { validateUUID, validateScheduleData, validatePin, validateDuration, validateSequenceData }
-export type { ID, SequenceData, Pin, CallBack }
+export type { SequenceData, Pin, CallBack }
