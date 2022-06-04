@@ -4,29 +4,29 @@ import { join } from 'path'
 import EventEmitter from "events"
 
 
-export interface withId {
-    id: string | number
+export interface withId<T> {
+    id: T
 }
 
 type CallBack<T> = (err: Error | undefined | null, t?: T) => void
 
-interface DB<T extends withId> extends EventEmitter {
+interface DB<key, T extends withId<key>> extends EventEmitter {
     insert: (obj: Partial<T>, cb: CallBack<T>) => void
-    get: (id: withId['id'], cb: CallBack<T>) => void
+    get: (id: key, cb: CallBack<T>) => void
     set: (obj: Partial<T>, cb: CallBack<T>) => void
-    remove: (id: withId['id'], cb: CallBack<void>) => void
-    update: (id: withId['id'], obj: Partial<T>, cb: CallBack<T>) => void
+    remove: (id: key, cb: CallBack<void>) => void
+    update: (id: key, obj: Partial<T>, cb: CallBack<T>) => void
     list: (cb: CallBack<T[]>) => void
-    exists: (id: withId['id']) => boolean
+    exists: (id: key) => boolean
 }
 
-const nameFromId = (id: withId['id']) => `${id}.json`
+const nameFromId = (id: string) => `${id}.json`
 
 
 // TODO: Error Handling
 // TODO: Adding Custom De/Serializer
 // TODO: Adding Validators
-class LocalJsonDb<T extends withId> extends EventEmitter implements DB<T> {
+class LocalJsonDb<T extends withId<string>> extends EventEmitter implements DB<string, T> {
 
     path: string;
     validator: (t: Partial<T>) => T
@@ -37,7 +37,7 @@ class LocalJsonDb<T extends withId> extends EventEmitter implements DB<T> {
         this.validator = validator
     }
 
-    exists = (id: withId['id']) => existsSync(join(this.path, nameFromId(id)))
+    exists = (id: T['id']) => existsSync(join(this.path, nameFromId(id)))
 
     insert = (json: Partial<T>, cb: CallBack<T>) => {
         try {
@@ -64,7 +64,7 @@ class LocalJsonDb<T extends withId> extends EventEmitter implements DB<T> {
     }
 
 
-    get = (id: withId['id'], cb: CallBack<T>) => this.exists(id) ?
+    get = (id: T['id'], cb: CallBack<T>) => this.exists(id) ?
         readFile(
             join(this.path, nameFromId(id)),
             'utf-8',
@@ -101,7 +101,7 @@ class LocalJsonDb<T extends withId> extends EventEmitter implements DB<T> {
 
     }
 
-    remove = (id: withId['id'], cb: CallBack<void>) => this.exists(id) ?
+    remove = (id: T['id'], cb: CallBack<void>) => this.exists(id) ?
         rm(join(this.path, nameFromId(id)), (err) => {
             if (err) {
                 cb(err)
@@ -113,7 +113,7 @@ class LocalJsonDb<T extends withId> extends EventEmitter implements DB<T> {
         cb(Error('Doesn\'t exist'))
 
 
-    update = (id: withId['id'], json: Partial<T>, cb: CallBack<T>) => this.exists(id) ?
+    update = (id: T['id'], json: Partial<T>, cb: CallBack<T>) => this.exists(id) ?
         this.get(id, (err, oldObj) => {
             if (err) {
                 cb(err)
@@ -138,7 +138,7 @@ class LocalJsonDb<T extends withId> extends EventEmitter implements DB<T> {
     }
 }
 
-class LocalObjectDb<T extends withId> extends EventEmitter implements DB<T> {
+class LocalObjectDb<T extends withId<string | number>> extends EventEmitter implements DB<string | number, T> {
 
     filePath: string
     file: T[]
@@ -160,7 +160,7 @@ class LocalObjectDb<T extends withId> extends EventEmitter implements DB<T> {
         writeFile(this.filePath, JSON.stringify(this.file), cb)
     }
 
-    exists = (id: withId['id']) => {
+    exists = (id: T['id']) => {
         return !!this.file.find(obj => obj.id === id)
     };
 
@@ -193,7 +193,7 @@ class LocalObjectDb<T extends withId> extends EventEmitter implements DB<T> {
     };
 
 
-    get = (id: withId['id'], cb: CallBack<T>) => {
+    get = (id: T['id'], cb: CallBack<T>) => {
         const obj = this.file.find(obj => obj.id === id)
         obj ? cb(null, obj) : cb(new Error('object doesn\'t exist'))
     };
@@ -225,7 +225,7 @@ class LocalObjectDb<T extends withId> extends EventEmitter implements DB<T> {
     };
 
 
-    update = (id: withId['id'], obj: Partial<T>, cb: CallBack<T>) => {
+    update = (id: T['id'], obj: Partial<T>, cb: CallBack<T>) => {
         const index = this.file.findIndex(old => old.id === id)
         if (index < 0) {
             cb(new Error('Object doesn\'t exist'))
@@ -240,7 +240,7 @@ class LocalObjectDb<T extends withId> extends EventEmitter implements DB<T> {
     };
 
 
-    remove = (id: withId['id'], cb: CallBack<void>) => {
+    remove = (id: T['id'], cb: CallBack<void>) => {
         this.file = this.file.filter(obj => obj.id !== id)
         this.updateFile((err) => {
             if (err) {
