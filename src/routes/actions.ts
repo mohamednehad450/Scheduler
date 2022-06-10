@@ -9,9 +9,7 @@ enum ACTIONS {
     STOP = 'stop',
     ACTIVATE = 'activate',
     DEACTIVATE = 'deactivate',
-    RUNNING = 'running',
-    ACTIVE = 'active',
-    RUNNING_PINS = 'runningPins'
+    REFRESH = "refresh"
 }
 
 type ErrorObject = {
@@ -49,6 +47,35 @@ export default (io: Server, db: AppDB) => {
         console.log('Socket Connected.')
         console.log(`Socket ID: ${socket.id}`)
 
+        function sendState() {
+            // Send running Sequences status
+            pinManager.running((err, ids) => {
+                if (err) {
+                    socket.emit('error', createErr(ACTIONS.REFRESH, err))
+                    return
+                }
+                socket.emit('state', { runningSequences: ids })
+            })
+            // Send Pins Status
+            pinManager.pinsStatus((err, pins) => {
+                if (err) {
+                    socket.emit('error', createErr(ACTIONS.REFRESH, err))
+                    return
+                }
+                socket.emit('state', { pins })
+            })
+            // Send Active Sequences
+            scheduler.active((err, ids) => {
+                if (err) {
+                    socket.emit('error', createErr(ACTIONS.REFRESH, err))
+                    return
+                }
+                socket.emit('state', { activeSequences: ids })
+            })
+        }
+        sendState()
+        socket.on(ACTIONS.REFRESH, () => sendState())
+
 
         // Run schedule
         socket.on(ACTIONS.RUN, (id) => {
@@ -74,20 +101,6 @@ export default (io: Server, db: AppDB) => {
         })
 
 
-
-        // Running schedules
-        socket.on(ACTIONS.RUNNING, () => {
-            pinManager.running((err, ids) => {
-                if (err) {
-                    socket.emit('error', createErr(ACTIONS.RUNNING, err))
-                    return
-                }
-                socket.emit('state', { runningSchedules: ids })
-            })
-        })
-
-
-
         // Activate schedule
         socket.on(ACTIONS.ACTIVATE, (id) => {
             scheduler.activate(id || 'EMPTY_ID', (err) => {
@@ -100,7 +113,6 @@ export default (io: Server, db: AppDB) => {
         })
 
 
-
         // Deactivate schedule
         socket.on(ACTIONS.DEACTIVATE, (id) => {
             scheduler.deactivate(id || 'EMPTY_ID', (err) => {
@@ -109,31 +121,6 @@ export default (io: Server, db: AppDB) => {
                     return
                 }
                 socket.emit('success', createSuccess(ACTIONS.DEACTIVATE, '', id))
-            })
-        })
-
-
-
-        // Active schedules
-        socket.on(ACTIONS.ACTIVE, () => {
-            scheduler.active((err, ids) => {
-                if (err) {
-                    socket.emit('error', createErr(ACTIONS.ACTIVE, err))
-                    return
-                }
-                socket.emit('state', { activeSchedules: ids })
-            })
-        })
-
-
-        // Pins status
-        socket.on(ACTIONS.RUNNING_PINS, () => {
-            pinManager.pinsStatus((err, pins) => {
-                if (err) {
-                    socket.emit('error', createErr(ACTIONS.RUNNING_PINS, err))
-                    return
-                }
-                socket.emit('state', { pins })
             })
         })
     })
