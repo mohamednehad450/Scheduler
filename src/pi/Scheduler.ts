@@ -92,9 +92,9 @@ class Scheduler implements SchedulerInterface {
                 const channel = Number(pinId)
                 for (const id of this.sequences.keys()) {
                     const seq = this.sequences.get(id)
-                    if (seq?.data.pins.some((p) => p.channel === channel)) {
-                        const newPins = seq.data.pins.filter((p) => p.channel !== channel)
-                        const newSeqData: SequenceData = { ...seq.data, pins: newPins }
+                    if (seq?.data.orders.some((p) => p.channel === channel)) {
+                        const newPins = seq.data.orders.filter((p) => p.channel !== channel)
+                        const newSeqData: SequenceData = { ...seq.data, orders: newPins }
                         db.sequencesDb.set(newSeqData, (err, seqData) => {
                             // TODO
                         })

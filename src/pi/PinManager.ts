@@ -127,7 +127,7 @@ class PinManager implements GpioManager {
     }
 
     run = (data: SequenceData, cb: CallBack<void>) => {
-        for (const p of data.pins) {
+        for (const p of data.orders) {
             if (this.reservedPins.has(p.channel)) {
                 cb(new Error(`channel ${p.channel} is reserved by id: (${this.reservedPins.get(p.channel)})`))
                 return
@@ -138,10 +138,10 @@ class PinManager implements GpioManager {
             }
         }
 
-        data.pins.map(p => this.reservedPins.set(p.channel, data.id))
+        data.orders.map(p => this.reservedPins.set(p.channel, data.id))
 
         const time = new Date()
-        const runOrders: RunOrder[] = data.pins.map(p => {
+        const runOrders: RunOrder[] = data.orders.map(p => {
             const pin = this.pins.get(p.channel)
             if (!pin) throw new Error()
 

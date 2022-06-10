@@ -16,7 +16,7 @@ interface SequenceData {
     schedule: ScheduleData
     name: string
     lastRun?: Date | string
-    pins: {
+    orders: {
         channel: Pin['channel']
         duration: string
         offset: string
@@ -85,8 +85,8 @@ const validateSequenceData = (m: Partial<SequenceData>): SequenceData => {
     const name = m.name || `UNNAMED SCHEDULE: (id: ${id})`
     const schedule = validateScheduleData(m.schedule)
     const lastRun = !m.lastRun ? undefined : new Date(m.lastRun)
-    const pins = Array.isArray(m.pins) ?
-        m.pins.map(p => {
+    const orders = Array.isArray(m.orders) ?
+        m.orders.map(p => {
             const channel = validatePinChannel(p.channel)
             const duration = validateDuration(p.duration)
             const offset = validateDuration(p.offset)
@@ -101,7 +101,7 @@ const validateSequenceData = (m: Partial<SequenceData>): SequenceData => {
         name,
         schedule,
         lastRun,
-        pins,
+        orders,
     }
 }
 
