@@ -3,7 +3,7 @@ import { Express } from 'express'
 import { DB, withId } from "../db/db"
 
 
-export const CRUD = <K, T extends withId<K>>(app: Express, db: DB<K, T>, route: string) => {
+export const CRUD = <K, T extends withId<K>>(app: Express, db: DB<K, T>, route: string, stringToKey: (s: string) => K) => {
 
     // List all objects
     app.get(route + 's', (req, res) => {
@@ -18,9 +18,8 @@ export const CRUD = <K, T extends withId<K>>(app: Express, db: DB<K, T>, route: 
     })
 
     // Get object
-    app.get(route, (req, res) => {
-        const id = req.body.id || ''
-        db.get(id, (err, m) => {
+    app.get(route + '/:id', (req, res) => {
+        db.get(stringToKey(req.params.id), (err, m) => {
             if (err) {
                 res.status(400)
                 res.json(err)
@@ -54,8 +53,7 @@ export const CRUD = <K, T extends withId<K>>(app: Express, db: DB<K, T>, route: 
 
     // Delete an object
     app.delete(route, (req, res) => {
-        const id = req.body.id || ''
-        db.remove(id, (err) => {
+        db.remove(stringToKey(req.params.id), (err) => {
             if (err) {
                 res.status(400)
                 res.json(err)
