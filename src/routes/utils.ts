@@ -13,6 +13,7 @@ export const CRUD = <K, T extends withId<K>>(app: Express, db: DB<K, T>, route: 
                 res.json(err)
                 return
             }
+            res.header("Access-Control-Allow-Origin", "*");
             ms && res.json(ms)
         })
     })
@@ -26,6 +27,7 @@ export const CRUD = <K, T extends withId<K>>(app: Express, db: DB<K, T>, route: 
                 return
             }
             if (m) {
+                res.header("Access-Control-Allow-Origin", "*");
                 res.json(m)
             } else {
                 res.status(404)
@@ -43,6 +45,7 @@ export const CRUD = <K, T extends withId<K>>(app: Express, db: DB<K, T>, route: 
                 return
             }
             if (m) {
+                res.header("Access-Control-Allow-Origin", "*");
                 res.json(m)
             } else {
                 res.status(500)
@@ -59,6 +62,7 @@ export const CRUD = <K, T extends withId<K>>(app: Express, db: DB<K, T>, route: 
                 res.json(err)
             }
             else {
+                res.header("Access-Control-Allow-Origin", "*");
                 res.send()
             }
         })
@@ -73,6 +77,7 @@ export const CRUD = <K, T extends withId<K>>(app: Express, db: DB<K, T>, route: 
                 return
             }
             if (m) {
+                res.header("Access-Control-Allow-Origin", "*");
                 res.json(m)
                 return
             }
