@@ -5,15 +5,19 @@ import { Pin, SequenceData } from "./utils";
 
 
 type CallBack<T> = (err: Error | null | undefined, v?: T) => void
-
+type PinStatus = {
+    pin: Pin,
+    running: boolean,
+    err: Error | null | undefined,
+    reservedBy?: SequenceData['id']
+}
 interface GpioManager {
     isRunning: (id: SequenceData['id'],) => boolean
     run: (data: SequenceData, cb: CallBack<void>) => void
     running: (cb: CallBack<SequenceData['id'][]>) => void
     stop: (id: SequenceData['id'], cb: CallBack<void>) => void
-    pinsStatus: (cb: CallBack<{ p: Pin, running: boolean, err: Error | null | undefined }[]>) => void
+    pinsStatus: (cb: CallBack<PinStatus[]>) => void
     rest: (cb: CallBack<void>) => void
-
 }
 
 // Used to implement the 'Normally open pin state'
@@ -194,12 +198,8 @@ class PinManager implements GpioManager {
 
     };
 
-    pinsStatus = (cb: CallBack<{ p: Pin, running: boolean, err: Error | null | undefined }[]>) => {
-        const status: {
-            p: Pin,
-            running: boolean
-            err: Error | null | undefined
-        }[] = []
+    pinsStatus = (cb: CallBack<PinStatus[]>) => {
+        const status: PinStatus[] = []
         this.db.list((err, pins) => {
             if (err) {
                 cb(err)
@@ -209,11 +209,21 @@ class PinManager implements GpioManager {
                 cb(null, [])
                 return
             }
-            pins && pins.forEach((p) => {
-                this.gpio.read(p.channel, (err, HIGH) => {
+            pins && pins.forEach((pin) => {
+                this.gpio.read(pin.channel, (err, HIGH) => {
                     err ?
-                        status.push({ p, running: false, err: err }) :
-                        status.push({ p, running: p.onState === "HIGH" ? !!HIGH : !HIGH, err: null })
+                        status.push({
+                            pin,
+                            running: false,
+                            err: err,
+                            reservedBy: this.reservedPins.get(pin.channel)
+                        }) :
+                        status.push({
+                            pin,
+                            running: pin.onState === "HIGH" ? !!HIGH : !HIGH,
+                            err: null,
+                            reservedBy: this.reservedPins.get(pin.channel)
+                        })
                     status.length === pins.length && cb(null, status)
                 })
             })
