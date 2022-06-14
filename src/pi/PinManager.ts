@@ -4,7 +4,6 @@ import { Gpio, GpioConfig } from "./gpio";
 import { Pin, SequenceData } from "./utils";
 
 
-type CallBack<T> = (err: Error | null | undefined, v?: T) => void
 type PinStatus = {
     pin: Pin,
     running: boolean,
@@ -13,11 +12,11 @@ type PinStatus = {
 }
 interface GpioManager {
     isRunning: (id: SequenceData['id'],) => boolean
-    run: (data: SequenceData, cb: CallBack<void>) => void
-    running: (cb: CallBack<SequenceData['id'][]>) => void
-    stop: (id: SequenceData['id'], cb: CallBack<void>) => void
-    pinsStatus: (cb: CallBack<PinStatus[]>) => void
-    rest: (cb: CallBack<void>) => void
+    run: (data: SequenceData) => void
+    running: () => SequenceData['id'][]
+    stop: (id: SequenceData['id']) => void
+    pinsStatus: () => Promise<PinStatus[]>
+    rest: () => void
 }
 
 // Used to implement the 'Normally open pin state'
@@ -91,57 +90,41 @@ class PinManager implements GpioManager {
 
         // Old pin has been updated
         db.addListener('update', (newPin: Pin) => {
-            const id = this.reservedPins.get(newPin.channel)
-            if (id) {
-                this.stop(id, (err) => {
-                    if (err) {
-                        // TODO
-                        return
-                    }
-                    this.pins.set(newPin.channel, newPin)
-                })
-                return
-            }
             this.pins.set(newPin.channel, newPin)
         })
-        db.addListener('remove', (pinId: Pin['id']) => {
-            const channel = Number(pinId)
+
+        // Old pin removed
+        db.addListener('remove', (channel: Pin['id']) => {
             const id = this.reservedPins.get(channel)
             if (id) {
-                this.stop(id, (err) => {
-                    if (err) {
-                        // TODO
-                        return
-                    }
-                    this.pins.delete(channel)
-                })
-                return
+                this.stop(id)
             }
             this.pins.delete(channel)
         })
 
-
     }
+
 
     isRunning = (id: SequenceData['id']) => {
         return this.orders.has(id)
     };
 
-    running = (cb: CallBack<SequenceData['id'][]>) => {
-        cb(null, [...this.orders.keys()])
+
+    running = () => {
+        return [...this.orders.keys()]
     }
 
-    run = (data: SequenceData, cb: CallBack<void>) => {
+
+    run = (data: SequenceData) => {
         for (const p of data.orders) {
             if (this.reservedPins.has(p.channel)) {
-                cb(new Error(`channel ${p.channel} is reserved by id: (${this.reservedPins.get(p.channel)})`))
-                return
+                throw new Error(`channel ${p.channel} is reserved by id: (${this.reservedPins.get(p.channel)})`)
             }
             if (!this.pins.has(p.channel)) {
-                cb(new Error(`channel ${p.channel} is not defined`))
-                return
+                throw new Error(`channel ${p.channel} is not defined`)
             }
         }
+
 
         data.orders.map(p => this.reservedPins.set(p.channel, data.id))
 
@@ -187,59 +170,47 @@ class PinManager implements GpioManager {
         })
     }
 
-    stop = (id: SequenceData['id'], cb: CallBack<void>) => {
+
+    stop = (id: SequenceData['id']) => {
+
         const seqOrder = this.orders.get(id)
         if (!seqOrder) {
-            cb(null)
             return
         }
+
         seqOrder.runOrders.forEach(({ startTimer, closeTimer, pin, }) => {
             clearTimeout(startTimer)
             clearTimeout(closeTimer)
             this.gpio.write(pin.channel, !pState[pin.onState])
-                .catch(err => {
-                    // TODO
-                })
             this.reservedPins.delete(pin.channel)
         })
         clearTimeout(seqOrder.clearTimer)
         this.orders.delete(id)
-        cb(null)
-
     };
 
-    pinsStatus = (cb: CallBack<PinStatus[]>) => {
+    pinsStatus = async () => {
         const status: PinStatus[] = []
-        this.db.list()
-            .then(pins => {
-                pins && pins.forEach((pin) => {
-                    this.gpio.read(pin.channel)
-                        .then(HIGH => {
-                            status.push({
-                                pin,
-                                running: pin.onState === "HIGH" ? !!HIGH : !HIGH,
-                                err: null,
-                                reservedBy: this.reservedPins.get(pin.channel)
-                            })
-                            status.length === pins.length && cb(null, status)
-                        })
-                        .catch(err => {
-                            status.push({
-                                pin,
-                                running: false,
-                                err: err,
-                                reservedBy: this.reservedPins.get(pin.channel)
-                            })
-                            status.length === pins.length && cb(null, status)
-                        })
+        for (const [_, pin] of this.pins) {
+            const HIGH = await this.gpio.read(pin.channel)
+                .catch(err => {
+                    status.push({
+                        pin,
+                        running: false,
+                        err: err,
+                        reservedBy: this.reservedPins.get(pin.channel)
+                    })
                 })
+            status.push({
+                pin,
+                running: pin.onState === "HIGH" ? !!HIGH : !HIGH,
+                err: null,
+                reservedBy: this.reservedPins.get(pin.channel)
             })
-            .catch(err => {
-                cb(err)
-            })
+        }
+        return status
     };
 
-    rest = (cb: CallBack<void>) => {
+    rest = () => {
         // TODO
     };
 }

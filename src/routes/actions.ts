@@ -47,23 +47,20 @@ export default (io: Server, db: AppDB) => {
         console.log('Socket Connected.')
         console.log(`Socket ID: ${socket.id}`)
 
-        function sendState() {
+        async function sendState() {
+
             // Send running Sequences status
-            pinManager.running((err, ids) => {
-                if (err) {
-                    socket.emit('error', createErr(ACTIONS.REFRESH, err))
-                    return
-                }
-                socket.emit('state', { runningSequences: ids })
-            })
+            socket.emit('state', { runningSequences: pinManager.running() })
+
             // Send Pins Status
-            pinManager.pinsStatus((err, pins) => {
-                if (err) {
+            pinManager.pinsStatus()
+                .then(pins => {
+                    socket.emit('state', { pins })
+                })
+                .catch(err => {
                     socket.emit('error', createErr(ACTIONS.REFRESH, err))
-                    return
-                }
-                socket.emit('state', { pins })
-            })
+                })
+
             // Send Active Sequences
             scheduler.active((err, ids) => {
                 if (err) {

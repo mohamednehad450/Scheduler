@@ -20,12 +20,14 @@ class Sequence {
 
 
     run = (cb: CallBack<void>) => {
-        this.pm.run(this.data, cb)
+        this.pm.run(this.data)
+        cb(null)
     }
 
 
     stop = (cb: CallBack<void>) => {
-        this.pm.stop(this.data.id, cb)
+        this.pm.stop(this.data.id)
+        cb(null)
     }
 
 
