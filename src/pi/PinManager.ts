@@ -64,59 +64,60 @@ class PinManager implements GpioManager {
 
         const { boardMode } = this.config
 
-        this.db.list((err, pins) => {
-            if (err) {
+        this.db.list()
+            .then(pins => {
+                this.gpio.setMode(boardMode)
+                pins?.forEach(
+                    (p) => {
+                        gpio.setup(
+                            p.channel,
+                            p.onState === "LOW" ? gpio.DIR_HIGH : gpio.DIR_LOW)
+                        this.pins.set(p.channel, p)
+                    }
+                )
+            })
+            .catch(err => {
                 // TODO
+            })
+
+
+        // New pin has been defined
+        db.addListener('insert', (pin: Pin) => {
+            gpio.setup(
+                pin.channel,
+                pin.onState === "LOW" ? gpio.DIR_HIGH : gpio.DIR_LOW)
+            this.pins.set(pin.channel, pin)
+        })
+
+        // Old pin has been updated
+        db.addListener('update', (newPin: Pin) => {
+            const id = this.reservedPins.get(newPin.channel)
+            if (id) {
+                this.stop(id, (err) => {
+                    if (err) {
+                        // TODO
+                        return
+                    }
+                    this.pins.set(newPin.channel, newPin)
+                })
                 return
             }
-            this.gpio.setMode(boardMode)
-            pins?.forEach(
-                (p) => {
-                    gpio.setup(
-                        p.channel,
-                        p.onState === "LOW" ? gpio.DIR_HIGH : gpio.DIR_LOW)
-                    this.pins.set(p.channel, p)
-                }
-            )
-
-            // New pin has been defined
-            db.addListener('insert', (pin: Pin) => {
-                gpio.setup(
-                    pin.channel,
-                    pin.onState === "LOW" ? gpio.DIR_HIGH : gpio.DIR_LOW)
-                this.pins.set(pin.channel, pin)
-            })
-
-            // Old pin has been updated
-            db.addListener('update', (newPin: Pin) => {
-                const id = this.reservedPins.get(newPin.channel)
-                if (id) {
-                    this.stop(id, (err) => {
-                        if (err) {
-                            // TODO
-                            return
-                        }
-                        this.pins.set(newPin.channel, newPin)
-                    })
-                    return
-                }
-                this.pins.set(newPin.channel, newPin)
-            })
-            db.addListener('remove', (pinId: Pin['id']) => {
-                const channel = Number(pinId)
-                const id = this.reservedPins.get(channel)
-                if (id) {
-                    this.stop(id, (err) => {
-                        if (err) {
-                            // TODO
-                            return
-                        }
-                        this.pins.delete(channel)
-                    })
-                    return
-                }
-                this.pins.delete(channel)
-            })
+            this.pins.set(newPin.channel, newPin)
+        })
+        db.addListener('remove', (pinId: Pin['id']) => {
+            const channel = Number(pinId)
+            const id = this.reservedPins.get(channel)
+            if (id) {
+                this.stop(id, (err) => {
+                    if (err) {
+                        // TODO
+                        return
+                    }
+                    this.pins.delete(channel)
+                })
+                return
+            }
+            this.pins.delete(channel)
         })
 
 
@@ -200,34 +201,30 @@ class PinManager implements GpioManager {
 
     pinsStatus = (cb: CallBack<PinStatus[]>) => {
         const status: PinStatus[] = []
-        this.db.list((err, pins) => {
-            if (err) {
-                cb(err)
-                return
-            }
-            if (!pins || pins.length === 0) {
-                cb(null, [])
-                return
-            }
-            pins && pins.forEach((pin) => {
-                this.gpio.read(pin.channel, (err, HIGH) => {
-                    err ?
-                        status.push({
-                            pin,
-                            running: false,
-                            err: err,
-                            reservedBy: this.reservedPins.get(pin.channel)
-                        }) :
-                        status.push({
-                            pin,
-                            running: pin.onState === "HIGH" ? !!HIGH : !HIGH,
-                            err: null,
-                            reservedBy: this.reservedPins.get(pin.channel)
-                        })
-                    status.length === pins.length && cb(null, status)
+        this.db.list()
+            .then(pins => {
+                pins && pins.forEach((pin) => {
+                    this.gpio.read(pin.channel, (err, HIGH) => {
+                        err ?
+                            status.push({
+                                pin,
+                                running: false,
+                                err: err,
+                                reservedBy: this.reservedPins.get(pin.channel)
+                            }) :
+                            status.push({
+                                pin,
+                                running: pin.onState === "HIGH" ? !!HIGH : !HIGH,
+                                err: null,
+                                reservedBy: this.reservedPins.get(pin.channel)
+                            })
+                        status.length === pins.length && cb(null, status)
+                    })
                 })
             })
-        })
+            .catch(err => {
+                cb(err)
+            })
     };
 
     rest = (cb: CallBack<void>) => {

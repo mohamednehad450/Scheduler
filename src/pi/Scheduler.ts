@@ -28,94 +28,108 @@ class Scheduler implements SchedulerInterface {
         this.pinManager = pinManager
         this.sequences = new Map()
 
-        db.sequencesDb.list((err, seqData) => {
-            if (err) {
-                // TODO
-                return
-            }
+        db.sequencesDb.list().then(seqData => {
             seqData && seqData.forEach(d => this.sequences.set(d.id, new Sequence(d, this.pinManager)))
-
-            // New sequence added
-            db.sequencesDb.addListener('insert', (newSeq: SequenceData) => {
-                this.sequences.set(newSeq.id, new Sequence(newSeq, this.pinManager))
-            })
-
-            // Old sequence has been updated
-            db.sequencesDb.addListener('update', (seq: SequenceData) => {
-                const oldSeq = this.sequences.get(seq.id)
-                const newSeq = new Sequence(seq, this.pinManager)
-                const isActive = oldSeq?.isActive()
-                const isRunning = oldSeq?.isRunning()
-                if (isActive) {
-                    oldSeq?.deactivate((err) => {
-                        if (err) {
-                            // TODO
-                            return
-                        }
-                        newSeq.activate(err => {
-                            // TODO
-                        })
-                    })
-
-                }
-                if (isRunning) {
-                    oldSeq?.stop((err) => {
-                        if (err) {
-                            // TODO
-                            return
-                        }
-                        newSeq.run(err => {
-                            // TODO
-                        })
-                    })
-                }
-                this.sequences.set(seq.id, newSeq)
-            })
-
-            // Old sequence has been removed
-            db.sequencesDb.addListener('remove', (seqId: SequenceData['id']) => {
-                const oldSeq = this.sequences.get(seqId)
-                if (oldSeq?.isActive()) {
-                    oldSeq?.deactivate((err) => {
-                        // TODO
-                    })
-                }
-                if (oldSeq?.isRunning()) {
-                    oldSeq?.stop((err) => {
-                        // TODO
-                    })
-                }
-                this.sequences.delete(seqId)
-            })
-
-            db.pinsDb.addListener('remove', (pinId: Pin['id']) => {
-                const channel = Number(pinId)
-                for (const id of this.sequences.keys()) {
-                    const seq = this.sequences.get(id)
-                    if (seq?.data.orders.some((p) => p.channel === channel)) {
-                        const newPins = seq.data.orders.filter((p) => p.channel !== channel)
-                        const newSeqData: SequenceData = { ...seq.data, orders: newPins }
-                        db.sequencesDb.set(newSeqData, (err, seqData) => {
-                            // TODO
-                        })
-                    }
-                }
+        })
+            .catch(err => {
+                // TODO
             })
 
 
-            db.activeSequences.list((err, ids) => {
-                if (err) {
-                    // TODO
-                    return
-                }
-                ids && ids.forEach(({ id }) => this.activate(id, (err) => {
+        // New sequence added
+        db.sequencesDb.addListener('insert', (newSeq: SequenceData) => {
+            this.sequences.set(newSeq.id, new Sequence(newSeq, this.pinManager))
+        })
+
+        // Old sequence has been updated
+        db.sequencesDb.addListener('update', (seq: SequenceData) => {
+            const oldSeq = this.sequences.get(seq.id)
+            const newSeq = new Sequence(seq, this.pinManager)
+            const isActive = oldSeq?.isActive()
+            const isRunning = oldSeq?.isRunning()
+            if (isActive) {
+                oldSeq?.deactivate((err) => {
                     if (err) {
                         // TODO
                         return
                     }
+                    newSeq.activate(err => {
+                        // TODO
+                    })
+                })
+
+            }
+            if (isRunning) {
+                oldSeq?.stop((err) => {
+                    if (err) {
+                        // TODO
+                        return
+                    }
+                    newSeq.run(err => {
+                        // TODO
+                    })
+                })
+            }
+            this.sequences.set(seq.id, newSeq)
+        })
+
+        // Old sequence has been removed
+        db.sequencesDb.addListener('remove', (seqId: SequenceData['id']) => {
+            const oldSeq = this.sequences.get(seqId)
+            if (oldSeq?.isActive()) {
+                oldSeq?.deactivate((err) => {
+                    // TODO
+                })
+            }
+            if (oldSeq?.isRunning()) {
+                oldSeq?.stop((err) => {
+                    // TODO
+                })
+            }
+            this.sequences.delete(seqId)
+        })
+
+        db.pinsDb.addListener('remove', (channel: Pin['id']) => {
+            for (const id of this.sequences.keys()) {
+                const seq = this.sequences.get(id)
+                if (seq?.data.orders.some((p) => p.channel === channel)) {
+                    seq.isRunning() && seq.stop(err => {
+                        // TODO
+                    })
+
+                    const activated = seq.isActive()
+
+                    seq.deactivate(err => {
+                        // TODO
+                    })
+
+                    const newPins = seq.data.orders.filter((p) => p.channel !== channel)
+                    const newSeqData: SequenceData = { ...seq.data, orders: newPins }
+
+                    db.sequencesDb.set(newSeqData)
+                        .then(seqData => {
+                            const newSeq = new Sequence(seqData, pinManager)
+                            activated && newSeq.activate(err => {
+                                //TODO
+                            })
+                            this.sequences.set(seqData.id, newSeq)
+                        })
+                        .catch(err => {
+                            // TODO
+                        })
+                }
+            }
+        })
+        db.activeSequences.list()
+            .then(ids => {
+                ids.forEach(({ id }) => this.activate(id, (err) => {
+                    // TODO
                 }))
             })
-        })
+            .catch(err => {
+                // TODO
+            })
+
     }
 
 
@@ -138,13 +152,9 @@ class Scheduler implements SchedulerInterface {
                 cb(err)
                 return
             }
-            this.db.activeSequences.insert({ id: seq.data.id }, (err, id) => {
-                if (err) {
-                    cb(err)
-                    return
-                }
-                cb(null)
-            })
+            this.db.activeSequences.insert({ id: seq.data.id })
+                .then(id => cb(null))
+                .catch(cb)
         })
     };
 
@@ -167,13 +177,9 @@ class Scheduler implements SchedulerInterface {
                 cb(err)
                 return
             }
-            this.db.activeSequences.remove(seq.data.id, (err, id) => {
-                if (err) {
-                    cb(err)
-                    return
-                }
-                cb(null)
-            })
+            this.db.activeSequences.remove(seq.data.id)
+                .then(id => cb(null))
+                .catch(cb)
         })
     };
 
