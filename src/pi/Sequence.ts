@@ -3,10 +3,6 @@ import PinManager from './PinManager'
 import later, { setInterval, } from "later"
 
 
-type CallBack<T> = (err: Error | null | undefined, v?: T) => void
-
-
-
 class Sequence {
 
     data: SequenceData
@@ -19,15 +15,13 @@ class Sequence {
     }
 
 
-    run = (cb: CallBack<void>) => {
+    run = () => {
         this.pm.run(this.data)
-        cb(null)
     }
 
 
-    stop = (cb: CallBack<void>) => {
+    stop = () => {
         this.pm.stop(this.data.id)
-        cb(null)
     }
 
 
@@ -35,17 +29,15 @@ class Sequence {
         return this.pm.isRunning(this.data.id)
     }
 
-    activate = (cb: CallBack<void>) => {
+    activate = () => {
         if (!this.interval) {
-            this.interval = setInterval(() => this.run(() => { }), this.data.schedule)
-            cb(null)
+            this.interval = setInterval(() => this.run(), this.data.schedule)
         }
     }
 
-    deactivate = (cb: CallBack<void>) => {
+    deactivate = () => {
         this.interval?.clear()
         this.interval = undefined
-        cb(null)
     }
 
     isActive = (): boolean => {
