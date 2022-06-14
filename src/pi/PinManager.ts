@@ -157,14 +157,20 @@ class PinManager implements GpioManager {
                 duration,
                 offset,
                 startTimer: setTimeout(() => {
-                    this.gpio.write(pin.channel, pState[pin.onState], () => {
-                        // TODO
-                    })
+
+                    this.gpio.write(pin.channel, pState[pin.onState])
+                        .catch(err => {
+                            // TODO
+                        })
+
                 }, offset.asMilliseconds()),
                 closeTimer: setTimeout(() => {
-                    this.gpio.write(p.channel, !pState[pin.onState], () => {
-                        // TODO
-                    })
+
+                    this.gpio.write(p.channel, !pState[pin.onState])
+                        .catch(err => {
+                            // TODO
+                        })
+
                 }, moment.duration(duration).add(offset).asMilliseconds())
             }
         })
@@ -190,7 +196,10 @@ class PinManager implements GpioManager {
         seqOrder.runOrders.forEach(({ startTimer, closeTimer, pin, }) => {
             clearTimeout(startTimer)
             clearTimeout(closeTimer)
-            this.gpio.write(pin.channel, !pState[pin.onState], () => { })
+            this.gpio.write(pin.channel, !pState[pin.onState])
+                .catch(err => {
+                    // TODO
+                })
             this.reservedPins.delete(pin.channel)
         })
         clearTimeout(seqOrder.clearTimer)
@@ -204,22 +213,25 @@ class PinManager implements GpioManager {
         this.db.list()
             .then(pins => {
                 pins && pins.forEach((pin) => {
-                    this.gpio.read(pin.channel, (err, HIGH) => {
-                        err ?
-                            status.push({
-                                pin,
-                                running: false,
-                                err: err,
-                                reservedBy: this.reservedPins.get(pin.channel)
-                            }) :
+                    this.gpio.read(pin.channel)
+                        .then(HIGH => {
                             status.push({
                                 pin,
                                 running: pin.onState === "HIGH" ? !!HIGH : !HIGH,
                                 err: null,
                                 reservedBy: this.reservedPins.get(pin.channel)
                             })
-                        status.length === pins.length && cb(null, status)
-                    })
+                            status.length === pins.length && cb(null, status)
+                        })
+                        .catch(err => {
+                            status.push({
+                                pin,
+                                running: false,
+                                err: err,
+                                reservedBy: this.reservedPins.get(pin.channel)
+                            })
+                            status.length === pins.length && cb(null, status)
+                        })
                 })
             })
             .catch(err => {
