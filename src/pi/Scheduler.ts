@@ -4,15 +4,14 @@ import PinManager from './PinManager'
 import Sequence from './Sequence'
 import { Pin, SequenceData, } from './utils'
 
-type CallBack<T> = (err: Error | null | undefined, v?: T) => void
 
 interface SchedulerInterface {
-    activate: (id: SequenceData['id'], cb: CallBack<void>) => void
-    deactivate: (id: SequenceData['id'], cb: CallBack<void>) => void
-    isActive: (id: SequenceData['id'], cb: CallBack<boolean>) => void
-    run: (id: SequenceData['id'], cb: CallBack<void>) => void
-    stop: (id: SequenceData['id'], cb: CallBack<void>) => void
-    isRunning: (id: SequenceData['id'], cb: CallBack<boolean>) => void
+    activate: (id: SequenceData['id']) => Promise<void>
+    deactivate: (id: SequenceData['id']) => Promise<void>
+    isActive: (id: SequenceData['id'],) => boolean
+    active: () => SequenceData['id'][]
+    run: (id: SequenceData['id']) => Promise<void>
+    stop: (id: SequenceData['id']) => Promise<void>
 }
 
 class Scheduler implements SchedulerInterface {
@@ -29,7 +28,7 @@ class Scheduler implements SchedulerInterface {
         this.sequences = new Map()
 
         db.sequencesDb.list().then(seqData => {
-            seqData && seqData.forEach(d => this.sequences.set(d.id, new Sequence(d, this.pinManager)))
+            seqData.forEach(d => this.sequences.set(d.id, new Sequence(d, this.pinManager)))
         })
             .catch(err => {
                 // TODO
@@ -72,8 +71,6 @@ class Scheduler implements SchedulerInterface {
                 const seq = this.sequences.get(id)
                 if (seq?.data.orders.some((p) => p.channel === channel)) {
 
-                    const activated = seq.isActive()
-
                     seq.stop()
                     seq.deactivate()
 
@@ -81,11 +78,6 @@ class Scheduler implements SchedulerInterface {
                     const newSeqData: SequenceData = { ...seq.data, orders: newPins }
 
                     db.sequencesDb.set(newSeqData)
-                        .then(newSeqData => {
-                            const newSeq = new Sequence(newSeqData, pinManager)
-                            activated && newSeq.activate()
-                            this.sequences.set(newSeqData.id, newSeq)
-                        })
                         .catch(err => {
                             // TODO
                         })
@@ -94,9 +86,7 @@ class Scheduler implements SchedulerInterface {
         })
         db.activeSequences.list()
             .then(ids => {
-                ids.forEach(({ id }) => this.activate(id, (err) => {
-                    // TODO
-                }))
+                ids.forEach(({ id }) => this.activate(id))
             })
             .catch(err => {
                 // TODO
@@ -105,97 +95,64 @@ class Scheduler implements SchedulerInterface {
     }
 
 
-    activate = (id: SequenceData['id'], cb: CallBack<void>) => {
+    activate = async (id: SequenceData['id']) => {
 
         const seq = this.sequences.get(id)
 
         if (!seq) {
-            cb(new Error('Missing sequence or invalid sequence ID'))
-            return
+            throw new Error('Missing sequence or invalid sequence ID')
         }
-
-        if (!seq.isActive()) {
-            seq.activate()
-            this.db.activeSequences.insert({ id: seq.data.id })
-                .then(() => cb(null))
-                .catch(cb)
-        }
+        seq.activate()
+        await this.db.activeSequences.insert({ id: seq.data.id })
     };
 
 
-    deactivate = (id: SequenceData['id'], cb: CallBack<void>) => {
+    deactivate = async (id: SequenceData['id']) => {
         const seq = this.sequences.get(id)
 
         if (!seq) {
-            cb(new Error('Missing sequence or invalid sequence ID'))
-            return
+            throw new Error('Missing sequence or invalid sequence ID')
         }
-
-        if (seq.isActive()) {
-            seq.deactivate()
-            this.db.activeSequences.remove(seq.data.id)
-                .then(_ => cb(null))
-                .catch(cb)
-        }
+        seq.deactivate()
+        await this.db.activeSequences.remove(seq.data.id)
     };
 
 
-    isActive = (id: SequenceData['id'], cb: CallBack<boolean>) => {
+    isActive = (id: SequenceData['id']) => {
         const seq = this.sequences.get(id)
 
         if (!seq) {
-            cb(new Error('Missing sequence or invalid sequence ID'))
-            return
+            throw new Error('Missing sequence or invalid sequence ID')
         }
-        cb(null, seq.isActive())
 
+        return seq.isActive()
     }
 
 
-    active = (cb: CallBack<SequenceData['id'][]>) => {
-        cb(null,
-            [...this.sequences.entries()]
-                .filter(([_, seq]) => seq.isActive())
-                .map(([id]) => id)
-        )
+    active = () => {
+        return [...this.sequences.values()]
+            .filter(s => s.isActive())
+            .map((s => s.data.id))
     }
 
 
-    run = (id: SequenceData['id'], cb: CallBack<void>) => {
+    run = async (id: SequenceData['id']) => {
         const seq = this.sequences.get(id)
 
         if (!seq) {
-            cb(new Error('Missing sequence or invalid sequence ID'))
-            return
+            throw new Error('Missing sequence or invalid sequence ID')
         }
         seq.run()
-        cb(null)
     }
 
-
-
-    isRunning = (id: SequenceData['id'], cb: CallBack<boolean>) => {
+    stop = async (id: SequenceData['id']) => {
         const seq = this.sequences.get(id)
 
         if (!seq) {
-            cb(new Error('Missing sequence or invalid sequence ID'))
-            return
+            throw new Error('Missing sequence or invalid sequence ID')
         }
-        return seq.isRunning()
-    }
-
-    stop = (id: SequenceData['id'], cb: CallBack<void>) => {
-        const seq = this.sequences.get(id)
-
-        if (!seq) {
-            cb(new Error('Missing sequence or invalid sequence ID'))
-            return
-        }
-
         seq.stop()
-        cb(null)
     }
-
 }
 
 

@@ -1,7 +1,7 @@
 import { AppDB } from '../db'
 import gpio, { config } from '../pi/gpio'
 import { PinManager, Scheduler } from '../pi'
-import { Server } from 'socket.io'
+import { Server, Socket } from 'socket.io'
 
 
 enum ACTIONS {
@@ -37,6 +37,14 @@ const createSuccess = (action: ACTIONS, message?: string, ...args: any[]): Succe
     args
 })
 
+const addAction = (a: ACTIONS, func: (id: string) => Promise<void>, socket: Socket) => {
+    socket.on(a, (id) => {
+        func(id)
+            .then(() => socket.emit('success', createSuccess(a, '', id)))
+            .catch(err => socket.emit('error', createErr(a, err, id)))
+    })
+}
+
 export default (io: Server, db: AppDB) => {
 
     const pinManager = new PinManager(gpio, config, db.pinsDb)
@@ -50,7 +58,10 @@ export default (io: Server, db: AppDB) => {
         async function sendState() {
 
             // Send running Sequences status
-            socket.emit('state', { runningSequences: pinManager.running() })
+            socket.emit('state', {
+                runningSequences: pinManager.running(),
+                activeSequences: scheduler.active()
+            })
 
             // Send Pins Status
             pinManager.pinsStatus()
@@ -60,65 +71,15 @@ export default (io: Server, db: AppDB) => {
                 .catch(err => {
                     socket.emit('error', createErr(ACTIONS.REFRESH, err))
                 })
-
-            // Send Active Sequences
-            scheduler.active((err, ids) => {
-                if (err) {
-                    socket.emit('error', createErr(ACTIONS.REFRESH, err))
-                    return
-                }
-                socket.emit('state', { activeSequences: ids })
-            })
         }
         sendState()
         socket.on(ACTIONS.REFRESH, () => sendState())
 
-
-        // Run schedule
-        socket.on(ACTIONS.RUN, (id) => {
-            scheduler.run(id, (err) => {
-                if (err) {
-                    socket.emit('error', createErr(ACTIONS.RUN, err, id))
-                    return
-                }
-                socket.emit('success', createSuccess(ACTIONS.RUN, '', id))
-            })
-        })
-
-
-        // Stop schedule
-        socket.on(ACTIONS.STOP, (id) => {
-            scheduler.stop(id || 'EMPTY_ID', (err) => {
-                if (err) {
-                    socket.emit('error', createErr(ACTIONS.STOP, err, id))
-                    return
-                }
-                socket.emit('success', createSuccess(ACTIONS.STOP, '', id))
-            })
-        })
-
-
-        // Activate schedule
-        socket.on(ACTIONS.ACTIVATE, (id) => {
-            scheduler.activate(id || 'EMPTY_ID', (err) => {
-                if (err) {
-                    socket.emit('error', createErr(ACTIONS.ACTIVATE, err, id))
-                    return
-                }
-                socket.emit('success', createSuccess(ACTIONS.ACTIVATE, '', id))
-            })
-        })
-
-
-        // Deactivate schedule
-        socket.on(ACTIONS.DEACTIVATE, (id) => {
-            scheduler.deactivate(id || 'EMPTY_ID', (err) => {
-                if (err) {
-                    socket.emit('error', createErr(ACTIONS.DEACTIVATE, err, id))
-                    return
-                }
-                socket.emit('success', createSuccess(ACTIONS.DEACTIVATE, '', id))
-            })
-        })
+        addAction(ACTIONS.RUN, scheduler.run, socket)
+        addAction(ACTIONS.STOP, scheduler.stop, socket)
+        addAction(ACTIONS.ACTIVATE, scheduler.activate, socket)
+        addAction(ACTIONS.DEACTIVATE, scheduler.deactivate, socket)
     })
 }
+
+
