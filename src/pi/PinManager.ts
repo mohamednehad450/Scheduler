@@ -1,3 +1,4 @@
+import EventEmitter from "events";
 import moment, { Duration } from "moment";
 import { AppDB } from "../db";
 import gpio, { config } from "./gpio";
@@ -41,7 +42,7 @@ type SequenceOrder = {
 
 
 
-class PinManager implements GpioManager {
+class PinManager extends EventEmitter implements GpioManager {
 
     db: AppDB['pinsDb']
     pins: Map<Pin['channel'], Pin>
@@ -52,6 +53,7 @@ class PinManager implements GpioManager {
     orders: Map<SequenceData['id'], SequenceOrder>
 
     constructor(db: AppDB['pinsDb']) {
+        super()
         this.db = db
         this.pins = new Map()
         this.reservedPins = new Map()
@@ -98,6 +100,11 @@ class PinManager implements GpioManager {
             this.pins.delete(channel)
         })
 
+        gpio.addListener('change', (channel, HIGH) => {
+            const pin = this.pins.get(channel)
+            pin && this.emit('pinChange', pin.channel, pin.onState === "HIGH" ? !!HIGH : !HIGH, this.reservedPins.get(channel))
+        })
+
     }
 
 
@@ -124,7 +131,6 @@ class PinManager implements GpioManager {
 
         data.orders.map(p => this.reservedPins.set(p.channel, data.id))
 
-        const time = new Date()
         const runOrders: RunOrder[] = data.orders.map(p => {
             const pin = this.pins.get(p.channel)
             if (!pin) throw new Error()
@@ -153,6 +159,8 @@ class PinManager implements GpioManager {
                 }, moment.duration(duration).add(offset).asMilliseconds())
             }
         })
+        const time = new Date()
+        const duration = Math.max(...runOrders.map(r => moment.duration(r.duration).add(r.offset).asMilliseconds())) + 10
         this.orders.set(data.id, {
             runOrders,
             startTime: time,
@@ -160,10 +168,12 @@ class PinManager implements GpioManager {
                 () => {
                     runOrders.forEach(r => this.reservedPins.delete(r.pin.channel))
                     this.orders.delete(data.id)
+                    this.emit('stop', data.id)
                 },
                 Math.max(...runOrders.map(r => moment.duration(r.duration).add(r.offset).asMilliseconds())) + 10
             )
         })
+        this.emit('run', data.id, time, duration)
     }
 
 
@@ -182,6 +192,7 @@ class PinManager implements GpioManager {
         })
         clearTimeout(seqOrder.clearTimer)
         this.orders.delete(id)
+        this.emit('stop', id)
     };
 
     pinsStatus = async () => {
