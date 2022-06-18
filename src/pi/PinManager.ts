@@ -1,6 +1,6 @@
 import moment, { Duration } from "moment";
 import { AppDB } from "../db";
-import { Gpio, GpioConfig } from "./gpio";
+import gpio, { config } from "./gpio";
 import { Pin, SequenceData } from "./utils";
 
 
@@ -43,8 +43,6 @@ type SequenceOrder = {
 
 class PinManager implements GpioManager {
 
-    gpio: Gpio
-    config: GpioConfig
     db: AppDB['pinsDb']
     pins: Map<Pin['channel'], Pin>
 
@@ -53,22 +51,20 @@ class PinManager implements GpioManager {
 
     orders: Map<SequenceData['id'], SequenceOrder>
 
-    constructor(gpio: Gpio, config: GpioConfig, db: AppDB['pinsDb']) {
-        this.config = config
-        this.gpio = gpio
+    constructor(db: AppDB['pinsDb']) {
         this.db = db
         this.pins = new Map()
         this.reservedPins = new Map()
         this.orders = new Map()
 
-        const { boardMode } = this.config
+        const { boardMode } = config
 
         this.db.list()
             .then(pins => {
-                this.gpio.setMode(boardMode)
+                gpio.setMode(boardMode)
                 pins?.forEach(
                     (p) => {
-                        gpio.setup(
+                        gpio.promise.setup(
                             p.channel,
                             p.onState === "LOW" ? gpio.DIR_HIGH : gpio.DIR_LOW)
                         this.pins.set(p.channel, p)
@@ -141,7 +137,7 @@ class PinManager implements GpioManager {
                 offset,
                 startTimer: setTimeout(() => {
 
-                    this.gpio.write(pin.channel, pState[pin.onState])
+                    gpio.promise.write(pin.channel, pState[pin.onState])
                         .catch(err => {
                             // TODO
                         })
@@ -149,7 +145,7 @@ class PinManager implements GpioManager {
                 }, offset.asMilliseconds()),
                 closeTimer: setTimeout(() => {
 
-                    this.gpio.write(p.channel, !pState[pin.onState])
+                    gpio.promise.write(p.channel, !pState[pin.onState])
                         .catch(err => {
                             // TODO
                         })
@@ -181,7 +177,7 @@ class PinManager implements GpioManager {
         seqOrder.runOrders.forEach(({ startTimer, closeTimer, pin, }) => {
             clearTimeout(startTimer)
             clearTimeout(closeTimer)
-            this.gpio.write(pin.channel, !pState[pin.onState])
+            gpio.promise.write(pin.channel, !pState[pin.onState])
             this.reservedPins.delete(pin.channel)
         })
         clearTimeout(seqOrder.clearTimer)
@@ -191,7 +187,7 @@ class PinManager implements GpioManager {
     pinsStatus = async () => {
         const status: PinStatus[] = []
         for (const [_, pin] of this.pins) {
-            const HIGH = await this.gpio.read(pin.channel)
+            const HIGH = await gpio.promise.read(pin.channel)
                 .catch(err => {
                     status.push({
                         pin,

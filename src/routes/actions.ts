@@ -1,5 +1,4 @@
 import { AppDB } from '../db'
-import gpio, { config } from '../pi/gpio'
 import { PinManager, Scheduler } from '../pi'
 import { Server, Socket } from 'socket.io'
 
@@ -47,7 +46,7 @@ const addAction = (a: ACTIONS, func: (id: string) => Promise<void>, socket: Sock
 
 export default (io: Server, db: AppDB) => {
 
-    const pinManager = new PinManager(gpio, config, db.pinsDb)
+    const pinManager = new PinManager(db.pinsDb)
     const scheduler = new Scheduler(db, pinManager)
 
 
@@ -81,5 +80,3 @@ export default (io: Server, db: AppDB) => {
         addAction(ACTIONS.DEACTIVATE, scheduler.deactivate, socket)
     })
 }
-
-
