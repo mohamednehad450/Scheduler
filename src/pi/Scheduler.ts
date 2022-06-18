@@ -5,16 +5,16 @@ import Sequence from './Sequence'
 import { Pin, SequenceData, } from './utils'
 
 
-interface SchedulerInterface {
-    activate: (id: SequenceData['id']) => Promise<void>
-    deactivate: (id: SequenceData['id']) => Promise<void>
-    isActive: (id: SequenceData['id'],) => boolean
-    active: () => SequenceData['id'][]
-    run: (id: SequenceData['id']) => Promise<void>
-    stop: (id: SequenceData['id']) => Promise<void>
+interface SchedulerInterface<K> {
+    activate: (id: K) => Promise<void>
+    deactivate: (id: K) => Promise<void>
+    isActive: (id: K,) => boolean
+    active: () => K[]
+    run: (id: K) => Promise<void>
+    stop: (id: K) => Promise<void>
 }
 
-class Scheduler implements SchedulerInterface {
+class Scheduler implements SchedulerInterface<SequenceData['id']> {
 
     pinManager: PinManager
     sequences: Map<SequenceData['id'], Sequence>
