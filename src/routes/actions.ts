@@ -36,7 +36,7 @@ const createSuccess = (action: ACTIONS, message?: string, ...args: any[]): Succe
     args
 })
 
-const addAction = (a: ACTIONS, func: (id: string) => Promise<void>, socket: Socket) => {
+const addAction = (a: ACTIONS, func: (id: number) => Promise<void>, socket: Socket) => {
     socket.on(a, (id) => {
         func(id)
             .then(() => socket.emit('success', createSuccess(a, '', id)))
@@ -76,7 +76,7 @@ export default (io: Server, db: AppDB) => {
 
         addAction(ACTIONS.RUN, scheduler.run, socket)
         addAction(ACTIONS.STOP, scheduler.stop, socket)
-        addAction(ACTIONS.ACTIVATE, scheduler.activate, socket)
-        addAction(ACTIONS.DEACTIVATE, scheduler.deactivate, socket)
+        addAction(ACTIONS.ACTIVATE, async (id) => { await db.sequencesDb.update(id, { active: true }) }, socket)
+        addAction(ACTIONS.DEACTIVATE, async (id) => { await db.sequencesDb.update(id, { active: false }) }, socket)
     })
 }

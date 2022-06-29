@@ -2,22 +2,19 @@
 import { AppDB } from '../db'
 import PinManager from './PinManager'
 import Sequence from './Sequence'
-import { Pin, SequenceData, } from './utils'
-
+import { PinDbType, SequenceDBType } from '../db'
 
 interface SchedulerInterface<K> {
-    activate: (id: K) => Promise<void>
-    deactivate: (id: K) => Promise<void>
     isActive: (id: K,) => boolean
     active: () => K[]
     run: (id: K) => Promise<void>
     stop: (id: K) => Promise<void>
 }
 
-class Scheduler implements SchedulerInterface<SequenceData['id']> {
+class Scheduler implements SchedulerInterface<SequenceDBType['id']> {
 
     pinManager: PinManager
-    sequences: Map<SequenceData['id'], Sequence>
+    sequences: Map<SequenceDBType['id'], Sequence>
     db: AppDB
 
 
@@ -28,7 +25,7 @@ class Scheduler implements SchedulerInterface<SequenceData['id']> {
         this.sequences = new Map()
 
         db.sequencesDb.list().then(seqData => {
-            seqData.forEach(d => this.sequences.set(d.id, new Sequence(d, this.pinManager)))
+            seqData.forEach(d => this.sequences.set(d.id, new Sequence(d, this.pinManager, this.db.sequencesDb)))
         })
             .catch(err => {
                 // TODO
@@ -36,89 +33,28 @@ class Scheduler implements SchedulerInterface<SequenceData['id']> {
 
 
         // New sequence added
-        db.sequencesDb.addListener('insert', (newSeq: SequenceData) => {
-            this.sequences.set(newSeq.id, new Sequence(newSeq, this.pinManager))
-        })
-
-        // Old sequence has been updated
-        db.sequencesDb.addListener('update', (seq: SequenceData) => {
-            const oldSeq = this.sequences.get(seq.id)
-            const newSeq = new Sequence(seq, this.pinManager)
-            const isActive = oldSeq?.isActive()
-            const isRunning = oldSeq?.isRunning()
-
-            oldSeq?.deactivate()
-            oldSeq?.stop()
-
-            isActive && newSeq.activate()
-            isRunning && newSeq.run()
-
-            this.sequences.set(seq.id, newSeq)
+        db.sequencesDb.addListener('insert', (newSeq: SequenceDBType) => {
+            this.sequences.set(newSeq.id, new Sequence(newSeq, this.pinManager, this.db.sequencesDb))
         })
 
         // Old sequence has been removed
-        db.sequencesDb.addListener('remove', (seqId: SequenceData['id']) => {
-            const oldSeq = this.sequences.get(seqId)
-
-            oldSeq?.deactivate()
-            oldSeq?.stop()
-
+        db.sequencesDb.addListener('remove', (seqId: SequenceDBType['id']) => {
             this.sequences.delete(seqId)
         })
 
-        db.pinsDb.addListener('remove', (channel: Pin['id']) => {
+        db.pinsDb.addListener('remove', (channel: PinDbType['channel']) => {
+
             for (const id of this.sequences.keys()) {
                 const seq = this.sequences.get(id)
                 if (seq?.data.orders.some((p) => p.channel === channel)) {
-
-                    seq.stop()
-                    seq.deactivate()
-
-                    const newPins = seq.data.orders.filter((p) => p.channel !== channel)
-                    const newSeqData: SequenceData = { ...seq.data, orders: newPins }
-
-                    db.sequencesDb.set(newSeqData)
-                        .catch(err => {
-                            // TODO
-                        })
+                    // HACK: Trigger the update event to update effected sequences
+                    db.sequencesDb.update(id, {})
                 }
             }
         })
-        db.activeSequences.list()
-            .then(ids => {
-                ids.forEach(({ id }) => this.activate(id))
-            })
-            .catch(err => {
-                // TODO
-            })
-
     }
 
-
-    activate = async (id: SequenceData['id']) => {
-
-        const seq = this.sequences.get(id)
-
-        if (!seq) {
-            throw new Error('Missing sequence or invalid sequence ID')
-        }
-        seq.activate()
-        await this.db.activeSequences.insert({ id: seq.data.id })
-    };
-
-
-    deactivate = async (id: SequenceData['id']) => {
-        const seq = this.sequences.get(id)
-
-        if (!seq) {
-            throw new Error('Missing sequence or invalid sequence ID')
-        }
-        seq.deactivate()
-        await this.db.activeSequences.remove(seq.data.id)
-    };
-
-
-    isActive = (id: SequenceData['id']) => {
+    isActive = (id: SequenceDBType['id']) => {
         const seq = this.sequences.get(id)
 
         if (!seq) {
@@ -136,7 +72,7 @@ class Scheduler implements SchedulerInterface<SequenceData['id']> {
     }
 
 
-    run = async (id: SequenceData['id']) => {
+    run = async (id: SequenceDBType['id']) => {
         const seq = this.sequences.get(id)
 
         if (!seq) {
@@ -145,7 +81,7 @@ class Scheduler implements SchedulerInterface<SequenceData['id']> {
         seq.run()
     }
 
-    stop = async (id: SequenceData['id']) => {
+    stop = async (id: SequenceDBType['id']) => {
         const seq = this.sequences.get(id)
 
         if (!seq) {

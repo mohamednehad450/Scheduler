@@ -4,4 +4,4 @@ import { CRUD } from './utils'
 
 const route = '/sequence'
 
-export default (app: Express, db: AppDB,) => CRUD(app, db.sequencesDb, route, (s) => s)
+export default (app: Express, db: AppDB,) => CRUD(app, db.sequencesDb, route, (s) => Number(s))

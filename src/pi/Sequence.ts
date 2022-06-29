@@ -1,17 +1,42 @@
-import { SequenceData, validateSequenceData } from "./utils"
+import { validateSequenceData } from "./utils"
 import PinManager from './PinManager'
 import later, { setInterval, } from "later"
+import { SequenceDBType } from "../db"
+import { SequenceDb } from "../db/sequenceDb"
 
 
 class Sequence {
 
-    data: SequenceData
+    data: SequenceDBType
     pm: PinManager
     interval?: later.Timer
+    db: SequenceDb
 
-    constructor(data: SequenceData, pm: PinManager) {
+    constructor(data: SequenceDBType, pm: PinManager, db: SequenceDb) {
         this.data = validateSequenceData(data)
         this.pm = pm
+        this.db = db
+
+        db.addListener('update', (newData: SequenceDBType) => {
+            if (newData.id !== this.data.id) return
+            this.data = data
+            if (this.data.active) {
+                this.deactivate()
+                this.activate()
+            }
+            else {
+                this.deactivate()
+            }
+        })
+
+        db.addListener('remove', (id) => {
+            if (id !== this.data.id) return
+            this.stop()
+            this.deactivate()
+            this.data.id = -1
+        })
+
+        data.active && this.activate()
     }
 
 
@@ -29,19 +54,20 @@ class Sequence {
         return this.pm.isRunning(this.data.id)
     }
 
-    activate = () => {
-        if (!this.interval) {
-            this.interval = setInterval(() => this.run(), this.data.schedule)
+    private activate = () => {
+        if (!this.interval && this.data.schedule) {
+            const schedule = JSON.parse(this.data.schedule.scheduleJson)
+            this.interval = setInterval(() => this.run(), schedule)
         }
     }
 
-    deactivate = () => {
+    private deactivate = () => {
         this.interval?.clear()
         this.interval = undefined
     }
 
     isActive = (): boolean => {
-        return !!this.interval
+        return this.data.active
     }
 }
 

@@ -1,25 +1,22 @@
-import { Pin, SequenceData, validateSequenceData, validatePin, validateUUID } from "../pi/utils"
-import { LocalJsonDb, LocalObjectDb } from "./db"
+import { PrismaClient } from "@prisma/client"
+import { validateSequenceData, validatePin } from "../pi/utils"
+import { PinDb, PinDbType } from "./pinsDb"
+import { SequenceDb, SequenceDBType } from "./sequenceDb"
 
 type AppDB = {
-    sequencesDb: LocalJsonDb<SequenceData>,
-    pinsDb: LocalObjectDb<Pin>
-    activeSequences: LocalObjectDb<{ id: SequenceData['id'] }>
+    sequencesDb: SequenceDb,
+    pinsDb: PinDb
 }
 
-const paths = {
-    SEQUENCES: 'sequences/',
-    OBJECTS: 'objects/'
-}
+const prisma = new PrismaClient()
+prisma.$connect()
 
-
-const sequencesDb = new LocalJsonDb<SequenceData>(paths.SEQUENCES, validateSequenceData)
-const pinsDb = new LocalObjectDb<Pin>(paths.OBJECTS, 'pins', validatePin)
-const activeSequences = new LocalObjectDb<{ id: SequenceData['id'] }>(paths.OBJECTS, 'activeSequences', ({ id }: { id?: SequenceData['id'] }) => ({ id: validateUUID(String(id)) }))
+const sequencesDb = new SequenceDb(prisma, validateSequenceData)
+const pinsDb = new PinDb(prisma, validatePin)
 
 const appDb: AppDB = {
     sequencesDb,
     pinsDb,
-    activeSequences
 }
-export { appDb, AppDB }
+
+export { appDb, AppDB, SequenceDBType, PinDbType }

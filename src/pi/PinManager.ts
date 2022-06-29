@@ -2,32 +2,32 @@ import EventEmitter from "events";
 import moment, { Duration } from "moment";
 import { AppDB } from "../db";
 import gpio, { config } from "./gpio";
-import { Pin, SequenceData } from "./utils";
+import { PinDbType, SequenceDBType } from "../db";
 
 
 type PinStatus = {
-    pin: Pin,
+    pin: PinDbType,
     running: boolean,
     err: Error | null | undefined,
-    reservedBy?: SequenceData['id']
+    reservedBy?: SequenceDBType['id']
 }
 interface GpioManager {
-    isRunning: (id: SequenceData['id'],) => boolean
-    run: (data: SequenceData) => void
-    running: () => SequenceData['id'][]
-    stop: (id: SequenceData['id']) => void
+    isRunning: (id: SequenceDBType['id'],) => boolean
+    run: (data: SequenceDBType) => void
+    running: () => SequenceDBType['id'][]
+    stop: (id: SequenceDBType['id']) => void
     pinsStatus: () => Promise<PinStatus[]>
     rest: () => void
 }
 
 // Used to implement the 'Normally open pin state'
-const pState: { [key in Pin['onState']]: boolean } = {
+const pState: { [key in PinDbType['onState']]: boolean } = {
     HIGH: true,
     LOW: false,
 }
 
 type RunOrder = {
-    pin: Pin
+    pin: PinDbType
     duration: Duration
     offset: Duration
     startTimer: NodeJS.Timeout
@@ -45,12 +45,12 @@ type SequenceOrder = {
 class PinManager extends EventEmitter implements GpioManager {
 
     db: AppDB['pinsDb']
-    pins: Map<Pin['channel'], Pin>
+    pins: Map<PinDbType['channel'], PinDbType>
 
     // Map of reserved pins channels and the sequence ID
-    reservedPins: Map<Pin['channel'], SequenceData['id']>
+    reservedPins: Map<PinDbType['channel'], SequenceDBType['id']>
 
-    orders: Map<SequenceData['id'], SequenceOrder>
+    orders: Map<SequenceDBType['id'], SequenceOrder>
 
     constructor(db: AppDB['pinsDb']) {
         super()
@@ -79,20 +79,20 @@ class PinManager extends EventEmitter implements GpioManager {
 
 
         // New pin has been defined
-        db.addListener('insert', (pin: Pin) => {
-            gpio.setup(
+        db.addListener('insert', (pin: PinDbType) => {
+            gpio.promise.setup(
                 pin.channel,
                 pin.onState === "LOW" ? gpio.DIR_HIGH : gpio.DIR_LOW)
             this.pins.set(pin.channel, pin)
         })
 
         // Old pin has been updated
-        db.addListener('update', (newPin: Pin) => {
+        db.addListener('update', (newPin: PinDbType) => {
             this.pins.set(newPin.channel, newPin)
         })
 
         // Old pin removed
-        db.addListener('remove', (channel: Pin['id']) => {
+        db.addListener('remove', (channel: PinDbType['channel']) => {
             const id = this.reservedPins.get(channel)
             if (id) {
                 this.stop(id)
@@ -108,7 +108,7 @@ class PinManager extends EventEmitter implements GpioManager {
     }
 
 
-    isRunning = (id: SequenceData['id']) => {
+    isRunning = (id: SequenceDBType['id']) => {
         return this.orders.has(id)
     };
 
@@ -118,7 +118,7 @@ class PinManager extends EventEmitter implements GpioManager {
     }
 
 
-    run = (data: SequenceData) => {
+    run = (data: SequenceDBType) => {
         for (const p of data.orders) {
             if (this.reservedPins.has(p.channel)) {
                 throw new Error(`channel ${p.channel} is reserved by id: (${this.reservedPins.get(p.channel)})`)
@@ -177,7 +177,7 @@ class PinManager extends EventEmitter implements GpioManager {
     }
 
 
-    stop = (id: SequenceData['id']) => {
+    stop = (id: SequenceDBType['id']) => {
 
         const seqOrder = this.orders.get(id)
         if (!seqOrder) {

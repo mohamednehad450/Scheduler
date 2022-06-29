@@ -1,9 +1,9 @@
 import { Express } from 'express'
 
-import { DB, withId } from "../db/db"
+import { DB, } from "../db/db"
 
 
-export const CRUD = <K, T extends withId<K>>(app: Express, db: DB<K, T>, route: string, stringToKey: (s: string) => K) => {
+export const CRUD = <K, T>(app: Express, db: DB<K, T>, route: string, stringToKey: (s: string) => K) => {
 
     // List all objects
     app.get(route + 's', (req, res) => {
@@ -57,9 +57,22 @@ export const CRUD = <K, T extends withId<K>>(app: Express, db: DB<K, T>, route: 
             })
     })
 
+    // Updates an object completely
+    app.put(route + '/:id', (req, res) => {
+        db.set(stringToKey(req.params.id), req.body)
+            .then(m => {
+                res.header("Access-Control-Allow-Origin", "*");
+                res.json(m)
+            })
+            .catch(err => {
+                res.status(500)
+                res.json(err)
+            })
+    })
+
     // Updates an object
-    app.patch(route, (req, res) => {
-        db.set(req.body)
+    app.patch(route + '/:id', (req, res) => {
+        db.update(stringToKey(req.params.id), req.body)
             .then(m => {
                 res.header("Access-Control-Allow-Origin", "*");
                 res.json(m)

@@ -1,0 +1,139 @@
+
+import EventEmitter from "events"
+import { Sequence, Schedule, Order, PrismaClient, } from '@prisma/client'
+import { DB } from "./db";
+
+
+type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never };
+type XOR<T, U> = (T | U) extends object ? (Without<T, U> & U) | (Without<U, T> & T) : T | U;
+
+type SequenceWithOrders = (Sequence & { orders: Order[] })
+
+type SequenceDBType = XOR<(SequenceWithOrders & { schedule: Schedule }), SequenceWithOrders>
+
+
+class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBType> {
+
+    validator: (obj: Partial<SequenceDBType>) => SequenceDBType
+    prisma: PrismaClient
+
+    constructor(prisma: PrismaClient, validator: (obj: Partial<SequenceDBType>,) => SequenceDBType) {
+        super()
+        this.prisma = prisma
+        this.validator = validator
+    }
+
+    insert = async (arg: Partial<SequenceDBType>) => {
+
+        const obj = this.validator(arg)
+
+        const data = obj.schedule ? {
+            ...obj,
+            id: undefined,
+            scheduleId: undefined,
+            orders: { create: obj.orders },
+            schedule: { create: obj.schedule },
+
+        } : {
+            ...obj,
+            id: undefined,
+            orders: { create: obj.orders },
+            scheduleId: obj.scheduleId,
+        }
+        const newSeq = await this.prisma.sequence.create({
+            data,
+            include: { schedule: true, orders: true }
+        })
+        this.emit('insert', newSeq)
+        return newSeq
+    };
+
+
+    get = (id: SequenceDBType['id']) => {
+        return this.prisma.sequence.findUnique({ where: { id }, include: { orders: true, schedule: true } })
+    }
+
+
+    remove = async (id: SequenceDBType['id']) => {
+        const orders = this.prisma.order.deleteMany({ where: { sequenceId: id } })
+        const sequence = this.prisma.sequence.delete({ where: { id } })
+        await this.prisma.$transaction([orders, sequence])
+        this.emit('remove', id)
+    }
+
+
+    list = () => {
+        return this.prisma.sequence.findMany({ include: { schedule: true, orders: true } })
+    }
+
+
+    set = async (id: SequenceDBType['id'], arg: Partial<SequenceDBType>) => {
+        const obj = this.validator(arg)
+        const data =
+            obj.schedule ? {
+                ...obj,
+                id: undefined,
+                scheduleId: undefined,
+                schedule: { create: obj.schedule },
+
+            } : {
+                ...obj,
+                id: undefined,
+                scheduleId: obj.scheduleId,
+            }
+        const newSeq = await this.prisma.sequence.update({
+            where: { id },
+            data: {
+                ...data,
+                orders: {
+                    create: obj.orders,
+                    deleteMany: { sequenceId: id }
+                },
+            },
+            include: { orders: true, schedule: true }
+        })
+        this.emit('update', newSeq)
+        return newSeq
+    }
+
+
+    update = async (id: SequenceDBType['id'], obj: Partial<SequenceDBType>) => {
+        const data = obj.schedule ?
+            {
+                ...obj,
+                id: undefined,
+                scheduleId: undefined,
+                schedule: { create: obj.schedule },
+            } :
+            {
+                ...obj,
+                id: undefined,
+                schedule: undefined
+            }
+
+        const newSeq = await this.prisma.sequence.update({
+            where: { id },
+            include: { schedule: true, orders: true },
+            data: {
+                ...data,
+                orders: {
+                    create: data.orders,
+                    deleteMany: { sequenceId: id }
+                },
+            },
+        })
+        this.emit('update', newSeq)
+        return newSeq
+    }
+}
+
+export { SequenceDb, SequenceDBType }
+
+
+
+
+
+
+
+
+

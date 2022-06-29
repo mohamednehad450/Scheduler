@@ -1,60 +1,30 @@
-import later, { ScheduleData } from "later"
+import { Schedule } from "@prisma/client"
+import later from "later"
 import moment from "moment"
+import { PinDbType } from "../db/pinsDb"
+import { SequenceDBType } from "../db"
 import { config } from "./gpio"
 
-type CallBack<T> = (err: Error | null | undefined, v?: T) => void
 
-type Pin = {
-    id: number,
-    channel: number,
-    label: string,
-    onState: "HIGH" | "LOW",
-}
+const validateScheduleData = (schedule?: Schedule) => {
+    const s = JSON.parse(schedule?.scheduleJson || '')
+    later.schedule(s)
+    return schedule
 
-interface SequenceData {
-    id: string
-    schedule: ScheduleData
-    name: string
-    lastRun?: Date | string
-    orders: {
-        channel: Pin['channel']
-        duration: string
-        offset: string
-    }[]
 }
 
 
-
-const validateUUID = (id?: string) => {
-
-    if (id) {
-        return id
-    }
-    throw Error('Missing UUID')
-}
-
-
-const validateScheduleData = (sched?: ScheduleData) => {
-    if (sched) {
-        later.schedule(sched)
-        return sched
-    }
-    throw Error('Missing schedule')
-}
-
-
-const validatePinChannel = (channel: Pin['channel']): Pin['channel'] => {
+const validatePinChannel = (channel: PinDbType['channel']): PinDbType['channel'] => {
     if (channel && channel in config.validPins) {
         return channel
     }
     throw Error(`Invalid Pin channel`)
 }
 
-const validatePin = (pin: Partial<Pin>): Pin => {
+const validatePin = (pin: Partial<PinDbType>): PinDbType => {
     const { channel, label, onState } = pin
 
     if (!channel || !(channel in config.validPins)) throw new Error('Invalid channel.')
-    const id = channel
 
     if (!label) throw new Error('Missing label.')
 
@@ -62,7 +32,6 @@ const validatePin = (pin: Partial<Pin>): Pin => {
 
     return {
         channel,
-        id,
         label,
         onState,
     }
@@ -80,31 +49,31 @@ const validateDuration = (d?: string) => {
 }
 
 
-const validateSequenceData = (m: Partial<SequenceData>): SequenceData => {
-    const id = validateUUID(m.id)
-    const name = m.name || `UNNAMED SCHEDULE: (id: ${id})`
-    const schedule = validateScheduleData(m.schedule)
-    const lastRun = !m.lastRun ? undefined : new Date(m.lastRun)
-    const orders = Array.isArray(m.orders) ?
-        m.orders.map(p => {
+const validateSequenceData = (seq: Partial<SequenceDBType>): SequenceDBType => {
+    const validated = {
+        id: seq.id || -1,
+        name: seq.name || '',
+        lastRun: seq.lastRun || null,
+        active: !!seq.active,
+        scheduleId: seq.scheduleId || -1,
+        orders: Array.isArray(seq.orders) ? seq.orders.map(p => {
             const channel = validatePinChannel(p.channel)
             const duration = validateDuration(p.duration)
             const offset = validateDuration(p.offset)
             return {
                 channel,
                 duration,
-                offset
+                offset,
+                id: p.id || -1,
+                sequenceId: p.sequenceId || -1
             }
         }) : []
-    return {
-        id,
-        name,
-        schedule,
-        lastRun,
-        orders,
     }
+    return seq.schedule ? {
+        ...validated,
+        schedule: validateScheduleData(seq.schedule),
+    } : validated
 }
 
 
-export { validateUUID, validateScheduleData, validatePin, validateDuration, validateSequenceData }
-export type { SequenceData, Pin, CallBack }
+export { validateScheduleData, validatePin, validateDuration, validateSequenceData }
