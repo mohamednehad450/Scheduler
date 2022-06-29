@@ -54,6 +54,9 @@ export default (io: Server, db: AppDB) => {
         console.log('Socket Connected.')
         console.log(`Socket ID: ${socket.id}`)
 
+        const tickInterval = setInterval(() => socket.emit('tick', new Date()), 1000)
+        socket.on('disconnect', () => clearInterval(tickInterval))
+
         pinManager.on('pinChange', (...args) => socket.emit('pinChange', ...args))
         pinManager.on('stop', (...args) => socket.emit('stop', ...args))
         pinManager.on('run', (...args) => socket.emit('run', ...args))
