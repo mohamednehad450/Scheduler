@@ -1,0 +1,49 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Pin {
+  channel Int     @id @unique
+  label   String
+  onState String
+  orders  Order[]
+}
+
+model Order {
+  id Int @id @default(autoincrement())
+
+  Pin     Pin @relation(fields: [channel], references: [channel])
+  channel Int
+
+  duration String
+  offset   String
+
+  sequence   Sequence @relation(fields: [sequenceId], references: [id])
+  sequenceId Int
+
+}
+
+model Schedule {
+  id           Int        @id @default(autoincrement())
+  scheduleJson String
+  label        String
+  sequence     Sequence[]
+}
+
+model Sequence {
+  id         Int       @id @default(autoincrement())
+  name       String
+  orders     Order[]
+  lastRun    DateTime?
+  schedule   Schedule  @relation(fields: [scheduleId], references: [id])
+  scheduleId Int
+  active     Boolean   @default(false)
+}
