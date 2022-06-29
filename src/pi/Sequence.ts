@@ -42,6 +42,7 @@ class Sequence {
 
     run = () => {
         this.pm.run(this.data)
+        this.db.update(this.data.id, { lastRun: new Date() })
     }
 
 
