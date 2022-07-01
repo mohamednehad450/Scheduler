@@ -31,13 +31,13 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
             ...obj,
             id: undefined,
             scheduleId: undefined,
-            orders: { create: obj.orders },
+            orders: { create: obj.orders.map(o => ({ ...o, sequenceId: undefined })) },
             schedule: { create: obj.schedule },
 
         } : {
             ...obj,
             id: undefined,
-            orders: { create: obj.orders },
+            orders: { create: obj.orders.map(o => ({ ...o, sequenceId: undefined })) },
             scheduleId: obj.scheduleId,
         }
         const newSeq = await this.prisma.sequence.create({
@@ -81,13 +81,13 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
                 id: undefined,
                 scheduleId: obj.scheduleId,
             }
+        await this.prisma.order.deleteMany({ where: { sequenceId: id } })
         const newSeq = await this.prisma.sequence.update({
             where: { id },
             data: {
                 ...data,
                 orders: {
-                    create: obj.orders,
-                    deleteMany: { sequenceId: id }
+                    create: obj.orders.map(o => ({ ...o, sequenceId: undefined })),
                 },
             },
             include: { orders: true, schedule: true }
@@ -98,32 +98,28 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
 
 
     update = async (id: SequenceDBType['id'], obj: Partial<SequenceDBType>) => {
+
+        // NOTICE: this is inefficient since orders will get deleted and recreated 
+        // because the set method treats them as new data
+        // TODO: FIX THIS MESS
+        const oldSeq = await this.get(id)
+
+        if (!oldSeq) throw new Error('Sequence not found')
+
         const data = obj.schedule ?
             {
+                ...oldSeq,
                 ...obj,
                 id: undefined,
                 scheduleId: undefined,
-                schedule: { create: obj.schedule },
             } :
             {
+                ...oldSeq,
                 ...obj,
                 id: undefined,
                 schedule: undefined
             }
-
-        const newSeq = await this.prisma.sequence.update({
-            where: { id },
-            include: { schedule: true, orders: true },
-            data: {
-                ...data,
-                orders: {
-                    create: data.orders,
-                    deleteMany: { sequenceId: id }
-                },
-            },
-        })
-        this.emit('update', newSeq)
-        return newSeq
+        return this.set(id, data)
     }
 }
 
