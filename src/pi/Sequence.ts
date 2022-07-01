@@ -19,8 +19,8 @@ class Sequence {
 
         db.addListener('update', (newData: SequenceDBType) => {
             if (newData.id !== this.data.id) return
-            this.data = data
-            if (this.data.active) {
+            this.data = newData
+            if (newData.active) {
                 this.deactivate()
                 this.activate()
             }
