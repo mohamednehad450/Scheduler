@@ -58,8 +58,16 @@ export default (io: Server, db: AppDB) => {
         socket.on('disconnect', () => clearInterval(tickInterval))
 
         pinManager.on('pinChange', (...args) => socket.emit('pinChange', ...args))
+        pinManager.on('pinChange', async () => socket.emit('state', { pins: await pinManager.pinsStatus() }))
+
         pinManager.on('stop', (...args) => socket.emit('stop', ...args))
+        pinManager.on('stop', async () => socket.emit('state', {
+            runningSequences: pinManager.running(),
+            pins: await pinManager.pinsStatus()
+        }))
+
         pinManager.on('run', (...args) => socket.emit('run', ...args))
+        pinManager.on('run', () => socket.emit('state', { runningSequences: pinManager.running(), }))
 
         async function sendState() {
 
