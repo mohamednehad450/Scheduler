@@ -87,7 +87,7 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
             data: {
                 ...data,
                 orders: {
-                    create: obj.orders.map(o => ({ ...o, sequenceId: undefined })),
+                    create: obj.orders.map(o => ({ ...o, sequenceId: undefined, id: undefined })),
                 },
             },
             include: { orders: true, schedule: true }
