@@ -6,8 +6,6 @@ import { Server, Socket } from 'socket.io'
 enum ACTIONS {
     RUN = "run",
     STOP = 'stop',
-    ACTIVATE = 'activate',
-    DEACTIVATE = 'deactivate',
     REFRESH = "refresh"
 }
 
@@ -87,7 +85,5 @@ export default (io: Server, db: AppDB) => {
 
         addAction(ACTIONS.RUN, scheduler.run, socket)
         addAction(ACTIONS.STOP, scheduler.stop, socket)
-        addAction(ACTIONS.ACTIVATE, async (id) => { await db.sequencesDb.update(id, { active: true }) }, socket)
-        addAction(ACTIONS.DEACTIVATE, async (id) => { await db.sequencesDb.update(id, { active: false }) }, socket)
     })
 }
