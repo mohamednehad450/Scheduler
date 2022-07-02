@@ -38,7 +38,7 @@ const addAction = (a: ACTIONS, func: (id: number) => Promise<void>, socket: Sock
     socket.on(a, (id) => {
         func(id)
             .then(() => socket.emit('success', createSuccess(a, '', id)))
-            .catch(err => socket.emit('error', createErr(a, err, id)))
+            .catch(err => socket.emit('failed', createErr(a, err, id)))
     })
 }
 
@@ -77,10 +77,10 @@ export default (io: Server, db: AppDB) => {
             })
         }
         sendState()
-            .catch(err => socket.emit('error', createErr(ACTIONS.REFRESH, err)))
+            .catch(err => socket.emit('failed', createErr(ACTIONS.REFRESH, err)))
 
         socket.on(ACTIONS.REFRESH, () => sendState()
-            .catch(err => socket.emit('error', createErr(ACTIONS.REFRESH, err))))
+            .catch(err => socket.emit('failed', createErr(ACTIONS.REFRESH, err))))
 
 
         addAction(ACTIONS.RUN, scheduler.run, socket)
