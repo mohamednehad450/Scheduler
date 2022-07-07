@@ -30,9 +30,9 @@ if (process.env.NODE_ENV === 'development') {
     }
 
     gpio.promise.write = async (c, bool, ...args) => {
-        gpio.emit('change', c, bool)
         channelState.set(c, bool)
         logArgs('write', c, bool, args)
+        gpio.emit('change', c, bool)
     }
 }
 
