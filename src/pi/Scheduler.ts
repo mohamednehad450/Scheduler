@@ -1,17 +1,20 @@
 
 import { AppDB } from '../db'
-import PinManager from './PinManager'
+import PinManager, { PinStatus } from './PinManager'
 import Sequence from './Sequence'
 import { PinDbType, SequenceDBType } from '../db'
+import EventEmitter from 'events'
 
 interface SchedulerInterface<K> {
     isActive: (id: K,) => boolean
     active: () => K[]
     run: (id: K) => Promise<void>
+    running: () => K[]
     stop: (id: K) => Promise<void>
+    pinsStatus: () => Promise<PinStatus[]>
 }
 
-class Scheduler implements SchedulerInterface<SequenceDBType['id']> {
+class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBType['id']> {
 
     pinManager: PinManager
     sequences: Map<SequenceDBType['id'], Sequence>
@@ -19,9 +22,10 @@ class Scheduler implements SchedulerInterface<SequenceDBType['id']> {
 
 
 
-    constructor(db: AppDB, pinManager: PinManager) {
+    constructor(db: AppDB) {
+        super()
         this.db = db
-        this.pinManager = pinManager
+        this.pinManager = new PinManager(db.pinsDb)
         this.sequences = new Map()
 
         db.sequencesDb.list().then(seqData => {
@@ -52,6 +56,11 @@ class Scheduler implements SchedulerInterface<SequenceDBType['id']> {
                 }
             }
         })
+
+        // PinManager events pass through
+        this.pinManager.on('pinChange', (...args) => this.emit('pinChange', ...args))
+        this.pinManager.on('stop', (...args) => this.emit('stop', ...args))
+        this.pinManager.on('run', (...args) => this.emit('run', ...args))
     }
 
     isActive = (id: SequenceDBType['id']) => {
@@ -60,7 +69,6 @@ class Scheduler implements SchedulerInterface<SequenceDBType['id']> {
         if (!seq) {
             throw new Error('Missing sequence or invalid sequence ID')
         }
-
         return seq.isActive()
     }
 
@@ -89,6 +97,11 @@ class Scheduler implements SchedulerInterface<SequenceDBType['id']> {
         }
         seq.stop()
     }
+
+
+    pinsStatus = () => this.pinManager.pinsStatus();
+    running = () => this.pinManager.running();
+
 }
 
 

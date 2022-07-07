@@ -5,7 +5,7 @@ import gpio, { config } from "./gpio";
 import { PinDbType, SequenceDBType } from "../db";
 
 
-type PinStatus = {
+export type PinStatus = {
     pin: PinDbType,
     running: boolean,
     err: Error | null | undefined,

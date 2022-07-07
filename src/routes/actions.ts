@@ -44,36 +44,46 @@ const addAction = (a: ACTIONS, func: (id: number) => Promise<void>, socket: Sock
 
 export default (io: Server, db: AppDB) => {
 
-    const pinManager = new PinManager(db.pinsDb)
-    const scheduler = new Scheduler(db, pinManager)
+    const scheduler = new Scheduler(db)
 
 
     io.on('connection', (socket) => {
         console.log('Socket Connected.')
         console.log(`Socket ID: ${socket.id}`)
 
+        // Send time every second
         const tickInterval = setInterval(() => socket.emit('tick', new Date()), 1000)
-        socket.on('disconnect', () => clearInterval(tickInterval))
 
-        pinManager.on('pinChange', (...args) => socket.emit('pinChange', ...args))
-        pinManager.on('pinChange', async () => socket.emit('state', { pins: await pinManager.pinsStatus() }))
+        // On pin change: update state and emit pinChange 
+        scheduler.on('pinChange', async (...args) => {
+            socket.emit('pinChange', ...args)
+            socket.emit('state', {
+                pins: await scheduler.pinsStatus()
+            })
+        })
 
-        pinManager.on('stop', (...args) => socket.emit('stop', ...args))
-        pinManager.on('stop', async () => socket.emit('state', {
-            runningSequences: pinManager.running(),
-            pins: await pinManager.pinsStatus()
-        }))
 
-        pinManager.on('run', (...args) => socket.emit('run', ...args))
-        pinManager.on('run', () => socket.emit('state', { runningSequences: pinManager.running(), }))
+        // On sequence stop: update state and emit stop 
+        scheduler.on('stop', async (...args) => {
+            socket.emit('stop', ...args)
+            socket.emit('state', {
+                runningSequences: scheduler.running(),
+                pins: await scheduler.pinsStatus()
+            })
+        })
+
+
+        // On sequence run: update state and emit run 
+        scheduler.on('run', (...args) => {
+            socket.emit('run', ...args)
+            socket.emit('state', { runningSequences: scheduler.running(), })
+        })
 
         async function sendState() {
-
-            // Send running Sequences status
             socket.emit('state', {
-                runningSequences: pinManager.running(),
+                runningSequences: scheduler.running(),
                 activeSequences: scheduler.active(),
-                pins: await pinManager.pinsStatus()
+                pins: await scheduler.pinsStatus()
             })
         }
         sendState()
@@ -85,5 +95,12 @@ export default (io: Server, db: AppDB) => {
 
         addAction(ACTIONS.RUN, scheduler.run, socket)
         addAction(ACTIONS.STOP, scheduler.stop, socket)
+
+
+        socket.on('disconnect', () => {
+            scheduler.removeAllListeners()
+            socket.removeAllListeners()
+            clearInterval(tickInterval)
+        })
     })
 }
