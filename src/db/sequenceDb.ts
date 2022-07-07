@@ -123,7 +123,8 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
     }
 }
 
-export { SequenceDb, SequenceDBType }
+export { SequenceDb }
+export type { SequenceDBType }
 
 
 

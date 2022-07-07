@@ -65,4 +65,5 @@ class PinDb extends EventEmitter implements DB<Pin['channel'], PinDbType> {
     }
 }
 
-export { PinDb, PinDbType }
+export { PinDb }
+export type { PinDbType }

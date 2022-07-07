@@ -19,4 +19,5 @@ const appDb: AppDB = {
     pinsDb,
 }
 
-export { appDb, AppDB, SequenceDBType, PinDbType }
+export { appDb }
+export type { AppDB, SequenceDBType, PinDbType }

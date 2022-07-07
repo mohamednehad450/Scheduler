@@ -37,4 +37,5 @@ if (process.env.NODE_ENV === 'development') {
 }
 
 export default gpio
-export { config, GpioConfig }
+export { config }
+export type { GpioConfig }

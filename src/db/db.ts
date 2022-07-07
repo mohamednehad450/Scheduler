@@ -9,4 +9,4 @@ interface DB<K, T> extends EventEmitter {
     list: () => Promise<T[]>
 }
 
-export { DB }
+export type { DB }
