@@ -9,7 +9,6 @@ export const CRUD = <K, T>(app: Express, db: DB<K, T>, route: string, stringToKe
     app.get(route + 's', (req, res) => {
         db.list()
             .then(ms => {
-                res.header("Access-Control-Allow-Origin", "*");
                 res.json(ms)
             })
             .catch(err => {
@@ -22,7 +21,6 @@ export const CRUD = <K, T>(app: Express, db: DB<K, T>, route: string, stringToKe
     app.get(route + '/:id', (req, res) => {
         db.get(stringToKey(req.params.id))
             .then(m => {
-                res.header("Access-Control-Allow-Origin", "*");
                 res.json(m)
             })
             .catch(err => {
@@ -35,7 +33,6 @@ export const CRUD = <K, T>(app: Express, db: DB<K, T>, route: string, stringToKe
     app.post(route, (req, res) => {
         db.insert(req.body)
             .then(m => {
-                res.header("Access-Control-Allow-Origin", "*");
                 res.json(m)
             })
             .catch(err => {
@@ -48,7 +45,6 @@ export const CRUD = <K, T>(app: Express, db: DB<K, T>, route: string, stringToKe
     app.delete(route, (req, res) => {
         db.remove(stringToKey(req.params.id))
             .then(() => {
-                res.header("Access-Control-Allow-Origin", "*");
                 res.json()
             })
             .catch(err => {
@@ -61,7 +57,6 @@ export const CRUD = <K, T>(app: Express, db: DB<K, T>, route: string, stringToKe
     app.put(route + '/:id', (req, res) => {
         db.set(stringToKey(req.params.id), req.body)
             .then(m => {
-                res.header("Access-Control-Allow-Origin", "*");
                 res.json(m)
             })
             .catch(err => {
@@ -74,7 +69,6 @@ export const CRUD = <K, T>(app: Express, db: DB<K, T>, route: string, stringToKe
     app.patch(route + '/:id', (req, res) => {
         db.update(stringToKey(req.params.id), req.body)
             .then(m => {
-                res.header("Access-Control-Allow-Origin", "*");
                 res.json(m)
             })
             .catch(err => {
