@@ -7,7 +7,7 @@ import { DB } from "./db";
 type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never };
 type XOR<T, U> = (T | U) extends object ? (Without<T, U> & U) | (Without<U, T> & T) : T | U;
 
-type SequenceWithOrders = (Sequence & { orders: Order[] })
+type SequenceWithOrders = (Sequence & { orders: (Order & { Pin: { label: string } })[] })
 
 type SequenceDBType = XOR<(SequenceWithOrders & { schedule: Schedule }), SequenceWithOrders>
 
@@ -42,7 +42,7 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
         }
         const newSeq = await this.prisma.sequence.create({
             data,
-            include: { schedule: true, orders: true }
+            include: { schedule: true, orders: { include: { Pin: { 'select': { label: true } } } } }
         })
         this.emit('insert', newSeq)
         return newSeq
@@ -50,7 +50,9 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
 
 
     get = (id: SequenceDBType['id']) => {
-        return this.prisma.sequence.findUnique({ where: { id }, include: { orders: true, schedule: true } })
+        return this.prisma.sequence.findUnique({
+            where: { id }, include: { schedule: true, orders: { include: { Pin: { 'select': { label: true } } } } }
+        })
     }
 
 
@@ -63,7 +65,9 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
 
 
     list = () => {
-        return this.prisma.sequence.findMany({ include: { schedule: true, orders: true } })
+        return this.prisma.sequence.findMany({
+            include: { schedule: true, orders: { include: { Pin: { 'select': { label: true } } } } }
+        })
     }
 
 
@@ -87,10 +91,10 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
             data: {
                 ...data,
                 orders: {
-                    create: obj.orders.map(o => ({ ...o, sequenceId: undefined, id: undefined })),
+                    create: obj.orders.map(o => ({ ...o, sequenceId: undefined, id: undefined, Pin: undefined })),
                 },
             },
-            include: { orders: true, schedule: true }
+            include: { schedule: true, orders: { include: { Pin: { 'select': { label: true } } } } }
         })
         this.emit('update', newSeq)
         return newSeq

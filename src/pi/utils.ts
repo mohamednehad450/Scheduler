@@ -64,7 +64,8 @@ const validateSequenceData = (seq: Partial<SequenceDBType>): SequenceDBType => {
                 duration,
                 offset,
                 id: p.id || -1,
-                sequenceId: p.sequenceId || -1
+                sequenceId: p.sequenceId || -1,
+                Pin: p.Pin
             }
         }) : []
     }
