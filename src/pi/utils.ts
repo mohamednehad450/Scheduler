@@ -14,8 +14,8 @@ const validateScheduleData = (schedule?: Schedule) => {
 }
 
 
-const validatePinChannel = (channel: PinDbType['channel']): PinDbType['channel'] => {
-    if (channel && channel in config.validPins) {
+const validatePinChannel = (channel?: PinDbType['channel']): PinDbType['channel'] => {
+    if (channel && config.validPins.some(c => c === channel)) {
         return channel
     }
     throw Error(`Invalid Pin channel`)
@@ -24,14 +24,13 @@ const validatePinChannel = (channel: PinDbType['channel']): PinDbType['channel']
 const validatePin = (pin: Partial<PinDbType>): PinDbType => {
     const { channel, label, onState } = pin
 
-    if (!channel || !(channel in config.validPins)) throw new Error('Invalid channel.')
 
     if (!label) throw new Error('Missing label.')
 
     if (!onState || (onState !== "HIGH" && onState !== "LOW")) throw new Error('Missing onState.')
 
     return {
-        channel,
+        channel: validatePinChannel(channel),
         label,
         onState,
     }
