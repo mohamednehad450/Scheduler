@@ -1,4 +1,3 @@
-import { validateSequenceData } from "./utils"
 import PinManager from './PinManager'
 import later, { setInterval, } from "later"
 import { SequenceDBType } from "../db"
@@ -13,7 +12,7 @@ class Sequence {
     db: SequenceDb
 
     constructor(data: SequenceDBType, pm: PinManager, db: SequenceDb) {
-        this.data = validateSequenceData(data)
+        this.data = data
         this.pm = pm
         this.db = db
 

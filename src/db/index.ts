@@ -1,7 +1,7 @@
 import { PrismaClient } from "@prisma/client"
-import { validateSequenceData, validatePin } from "../pi/utils"
 import { PinDb, PinDbType } from "./pinsDb"
 import { SequenceDb, SequenceDBType } from "./sequenceDb"
+import { PinSchema, PinPartialSchema, SequencePartialSchema, SequenceSchema } from "./validators"
 
 type AppDB = {
     sequencesDb: SequenceDb,
@@ -11,8 +11,8 @@ type AppDB = {
 const prisma = new PrismaClient()
 prisma.$connect()
 
-const sequencesDb = new SequenceDb(prisma, validateSequenceData)
-const pinsDb = new PinDb(prisma, validatePin)
+const sequencesDb = new SequenceDb(prisma, SequenceSchema, SequencePartialSchema)
+const pinsDb = new PinDb(prisma, PinSchema, PinPartialSchema)
 
 const appDb: AppDB = {
     sequencesDb,

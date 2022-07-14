@@ -2,22 +2,29 @@
 import EventEmitter from "events"
 import { PrismaClient, Pin, } from '@prisma/client'
 import { DB } from "./db";
+import { ObjectSchema } from "joi";
 
 type PinDbType = Pin
 
 class PinDb extends EventEmitter implements DB<Pin['channel'], PinDbType> {
 
-    validator: (obj: Partial<PinDbType>) => PinDbType
+    validator: ObjectSchema
+    partialValidator: ObjectSchema
     prisma: PrismaClient
-    constructor(prisma: PrismaClient, validator: (obj: Partial<PinDbType>,) => PinDbType) {
+    constructor(prisma: PrismaClient, validator: ObjectSchema, partialValidator: ObjectSchema) {
         super()
         this.prisma = prisma
         this.validator = validator
+        this.partialValidator = partialValidator
     }
 
-    insert = async (arg: Partial<PinDbType>) => {
-        const obj = this.validator(arg)
-        const newPin = await this.prisma.pin.create({ data: obj })
+    insert = async (arg: any) => {
+        const { value: data, error } = this.validator.validate(arg)
+
+        if (error) throw error
+
+        const newPin = await this.prisma.pin.create({ data })
+
         this.emit('insert', newPin)
         return newPin
     };
@@ -41,8 +48,11 @@ class PinDb extends EventEmitter implements DB<Pin['channel'], PinDbType> {
     }
 
 
-    set = async (channel: Pin['channel'], arg: Partial<PinDbType>) => {
-        const data = this.validator(arg)
+    set = async (channel: Pin['channel'], arg: any) => {
+        const { value: data, error } = this.validator.validate(arg)
+
+        if (error) throw error
+
         const newPin = await this.prisma.pin.update({
             where: { channel },
             data,
@@ -52,9 +62,11 @@ class PinDb extends EventEmitter implements DB<Pin['channel'], PinDbType> {
     }
 
 
-    update = async (channel: number, obj: Partial<PinDbType>) => {
-        const oldPin = await this.prisma.pin.findUnique({ where: { channel } })
-        const data = this.validator({ ...oldPin, ...obj, channel })
+    update = async (channel: number, obj: any) => {
+
+        const { error, value: data } = this.partialValidator.validate(obj)
+
+        if (error) throw error
 
         const newPin = await this.prisma.pin.update({
             where: { channel },
