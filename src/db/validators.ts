@@ -5,12 +5,12 @@ const Channel = Joi.number().valid(...config.validPins)
 
 const PinSchema = Joi.object({
     label: Joi.string().required(),
-    onState: Joi.string().allow('HIGH', 'LOW').required(),
+    onState: Joi.string().valid('HIGH', 'LOW').required(),
     channel: Channel.required()
 })
 const PinPartialSchema = Joi.object({
     label: Joi.string(),
-    onState: Joi.string().allow('HIGH', 'LOW'),
+    onState: Joi.string().valid('HIGH', 'LOW'),
 })
 
 // Order doesn't have a partial schema because it's never updated 
