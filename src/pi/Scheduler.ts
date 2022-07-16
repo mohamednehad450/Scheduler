@@ -29,7 +29,7 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
         this.sequences = new Map()
 
         db.sequencesDb.list().then(seqData => {
-            seqData.forEach(d => this.sequences.set(d.id, new Sequence(d, this.pinManager, this.db.sequencesDb)))
+            seqData.forEach(d => this.sequences.set(d.id, new Sequence(d, this.pinManager, this.db)))
         })
             .catch(err => {
                 // TODO
@@ -38,7 +38,7 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
 
         // New sequence added
         db.sequencesDb.addListener('insert', (newSeq: SequenceDBType) => {
-            this.sequences.set(newSeq.id, new Sequence(newSeq, this.pinManager, this.db.sequencesDb))
+            this.sequences.set(newSeq.id, new Sequence(newSeq, this.pinManager, this.db))
         })
 
         // Old sequence has been removed

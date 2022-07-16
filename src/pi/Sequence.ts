@@ -1,7 +1,6 @@
 import PinManager from './PinManager'
 import later, { setInterval, } from "later"
-import { SequenceDBType } from "../db"
-import { SequenceDb } from "../db/sequenceDb"
+import { AppDB, SequenceDBType } from "../db"
 
 
 class Sequence {
@@ -9,14 +8,14 @@ class Sequence {
     data: SequenceDBType
     pm: PinManager
     interval?: later.Timer
-    db: SequenceDb
+    db: AppDB
 
-    constructor(data: SequenceDBType, pm: PinManager, db: SequenceDb) {
+    constructor(data: SequenceDBType, pm: PinManager, appDb: AppDB) {
         this.data = data
         this.pm = pm
-        this.db = db
+        this.db = appDb
 
-        db.addListener('update', (newData: SequenceDBType) => {
+        this.db.sequencesDb.addListener('update', (newData: SequenceDBType) => {
             if (newData.id !== this.data.id) return
             this.data = newData
             if (newData.active) {
@@ -28,7 +27,7 @@ class Sequence {
             }
         })
 
-        db.addListener('remove', (id) => {
+        this.db.sequencesDb.addListener('remove', (id) => {
             if (id !== this.data.id) return
             this.stop()
             this.deactivate()
@@ -41,7 +40,7 @@ class Sequence {
 
     run = () => {
         this.pm.run(this.data)
-        this.db.update(this.data.id, { lastRun: new Date() })
+        this.db.sequencesDb.update(this.data.id, { lastRun: new Date() })
     }
 
 
@@ -55,10 +54,17 @@ class Sequence {
     }
 
     private activate = () => {
-        if (!this.interval && this.data.schedule) {
-            const schedule = JSON.parse(this.data.schedule.scheduleJson)
-            this.interval = setInterval(() => this.run(), schedule)
-        }
+        if (this.interval) return
+        this.db.scheduleDb.get(this.data.scheduleId)
+            .then(v => {
+                if (!v) return
+                const schedule = JSON.parse(v.scheduleJson)
+                this.interval = setInterval(() => this.run(), schedule)
+            })
+            .catch(err => {
+                // TODO
+            })
+
     }
 
     private deactivate = () => {
