@@ -1,69 +1,83 @@
 import PinManager from './PinManager'
 import later, { setInterval, } from "later"
 import { AppDB, SequenceDBType } from "../db"
+import { ScheduleDbType } from '../db/scheduleDb'
 
 
 class Sequence {
 
-    data: SequenceDBType
+    id: SequenceDBType['id']
+    scheduleId: ScheduleDbType['id']
     pm: PinManager
     interval?: later.Timer
     db: AppDB
 
-    constructor(data: SequenceDBType, pm: PinManager, appDb: AppDB) {
-        this.data = data
+    constructor(seq: SequenceDBType, pm: PinManager, appDb: AppDB) {
+
+        this.id = seq.id
+        this.scheduleId = seq.scheduleId
         this.pm = pm
         this.db = appDb
 
-        this.db.sequencesDb.addListener('update', (newData: SequenceDBType) => {
-            if (newData.id !== this.data.id) return
-            this.data = newData
+        const update = (newData: SequenceDBType) => {
+            if (newData.id !== this.id) return
+            this.scheduleId = newData.scheduleId
             if (newData.active) {
-                this.deactivate()
-                this.activate()
+                this.activate(newData.schedule)
             }
             else {
                 this.deactivate()
             }
-        })
+        }
+        const updateSchedule = (newSchedule: ScheduleDbType) => {
+            if (newSchedule.id !== this.scheduleId) return
+            this.isActive() && this.activate(newSchedule)
+        }
 
-        this.db.sequencesDb.addListener('remove', (id) => {
-            if (id !== this.data.id) return
+
+        const remove = (id: number) => {
+            if (id !== this.id) return
             this.stop()
             this.deactivate()
-            this.data.id = -1
-        })
+            this.db.sequencesDb.removeListener('update', update)
+            this.db.sequencesDb.removeListener('remove', remove)
+            this.db.scheduleDb.removeListener('update', updateSchedule)
+        }
 
-        data.active && this.activate()
+
+
+        this.db.sequencesDb.addListener('update', update)
+        this.db.sequencesDb.addListener('remove', remove)
+        this.db.scheduleDb.addListener('update', updateSchedule)
     }
 
 
     run = () => {
-        this.pm.run(this.data)
-        this.db.sequencesDb.update(this.data.id, { lastRun: new Date() })
-    }
-
-
-    stop = () => {
-        this.pm.stop(this.data.id)
-    }
-
-
-    isRunning = () => {
-        return this.pm.isRunning(this.data.id)
-    }
-
-    private activate = () => {
-        if (this.interval) return
-        this.db.scheduleDb.get(this.data.scheduleId)
-            .then(v => {
-                if (!v) return
-                const schedule = JSON.parse(v.scheduleJson)
-                this.interval = setInterval(() => this.run(), schedule)
+        this.db.sequencesDb.get(this.id)
+            .then(seq => {
+                if (!seq) return
+                this.pm.run(seq)
+                this.db.sequencesDb.update(this.id, { lastRun: new Date() })
             })
             .catch(err => {
                 // TODO
             })
+    }
+
+
+    stop = () => {
+        this.pm.stop(this.id)
+    }
+
+
+    isRunning = () => {
+        return this.pm.isRunning(this.id)
+    }
+
+    private activate = (schedule: ScheduleDbType) => {
+        this.deactivate()
+        this.interval = setInterval(() => this.run(), JSON.parse(schedule.scheduleJson))
+        return
 
     }
 
@@ -73,7 +87,7 @@ class Sequence {
     }
 
     isActive = (): boolean => {
-        return this.data.active
+        return !!this.interval
     }
 }
 

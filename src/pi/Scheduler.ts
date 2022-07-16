@@ -28,9 +28,10 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
         this.pinManager = new PinManager(db.pinsDb)
         this.sequences = new Map()
 
-        db.sequencesDb.list().then(seqData => {
-            seqData.forEach(d => this.sequences.set(d.id, new Sequence(d, this.pinManager, this.db)))
-        })
+        db.sequencesDb.list()
+            .then(seqData => {
+                seqData.forEach(d => this.sequences.set(d.id, new Sequence(d, this.pinManager, this.db)))
+            })
             .catch(err => {
                 // TODO
             })
@@ -46,16 +47,6 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
             this.sequences.delete(seqId)
         })
 
-        db.pinsDb.addListener('remove', (channel: PinDbType['channel']) => {
-
-            for (const id of this.sequences.keys()) {
-                const seq = this.sequences.get(id)
-                if (seq?.data.orders.some((p) => p.channel === channel)) {
-                    // HACK: Trigger the update event to update effected sequences
-                    db.sequencesDb.update(id, {})
-                }
-            }
-        })
 
         // PinManager events pass through
         this.pinManager.on('pinChange', (...args) => this.emit('pinChange', ...args))
@@ -76,7 +67,7 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
     active = () => {
         return [...this.sequences.values()]
             .filter(s => s.isActive())
-            .map((s => s.data.id))
+            .map((s => s.id))
     }
 
 
