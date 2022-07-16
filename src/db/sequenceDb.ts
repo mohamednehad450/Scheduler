@@ -5,12 +5,10 @@ import { DB } from "./db";
 import { ObjectSchema } from "joi";
 
 
-type Without<T, U> = { [P in Exclude<keyof T, keyof U>]?: never };
-type XOR<T, U> = (T | U) extends object ? (Without<T, U> & U) | (Without<U, T> & T) : T | U;
 
 type SequenceWithOrders = (Sequence & { orders: (Order & { Pin: { label: string } })[] })
 
-type SequenceDBType = XOR<(SequenceWithOrders & { schedule: Schedule }), SequenceWithOrders>
+type SequenceDBType = SequenceWithOrders & { schedule: Schedule }
 
 
 class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBType> {
