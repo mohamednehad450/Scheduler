@@ -17,9 +17,8 @@ const PinPartialSchema = Joi.object({
 const OrderSchema = Joi.object({
     duration: Joi.string().isoDuration().required(),
     offset: Joi.string().isoDuration().required(),
-    channel: Channel,
-    Pin: Joi.object({ create: PinSchema.required() }),
-}).xor('channel', 'Pin')
+    channel: Channel.required(),
+})
 
 const RecurrenceSchema = Joi.object({
     t: Joi.array().items(Joi.number().min(0).max(86399)),
