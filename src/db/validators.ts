@@ -1,6 +1,6 @@
 import Joi from "joi"
 import { config } from "../pi/gpio"
-import { nonZeroDuration, noOverlappingOrders } from "./customValidators"
+import { nonZeroDuration, noOverlappingOrders, validScheduleJson } from "./customValidators"
 
 const Channel = Joi.number().valid(...config.validPins)
 
@@ -52,34 +52,18 @@ const ScheduleDataSchema = Joi.object({
     error: Joi.number()
 })
 
+
 const ScheduleSchema = Joi.object({
-    scheduleJson: Joi.string().custom((v, helper) => {
-        let schedule = {}
-        try {
-            schedule = JSON.parse(v)
-        }
-        catch {
-            return helper.error('scheduleJson parse error: schedulerJson is an invalid JSON')
-        }
-        const { value, error } = ScheduleDataSchema.validate(schedule)
-        if (error) throw error
-        return JSON.stringify(value)
-    }).required(),
+    scheduleJson: Joi.string()
+        .custom(validScheduleJson)
+        .messages({ validScheduleJson: 'Schedule json parsing error' })
+        .required(),
     label: Joi.string().required(),
 })
 const SchedulePartialSchema = Joi.object({
-    scheduleJson: Joi.string().custom((v, helper) => {
-        let schedule = {}
-        try {
-            schedule = JSON.parse(v)
-        }
-        catch {
-            return helper.error('scheduleJson parse error: schedulerJson is an invalid JSON')
-        }
-        const { value, error } = ScheduleDataSchema.validate(schedule)
-        if (error) throw error
-        return value
-    }),
+    scheduleJson: Joi.string()
+        .custom(validScheduleJson)
+        .messages({ validScheduleJson: 'Schedule json parsing error' }),
     label: Joi.string(),
 })
 

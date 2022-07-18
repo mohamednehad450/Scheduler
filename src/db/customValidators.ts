@@ -1,5 +1,6 @@
 import Joi from "joi"
 import { duration } from "moment"
+import { ScheduleDataSchema } from "./validators"
 
 type Order = { duration: string, offset: string, channel: number, }
 
@@ -105,4 +106,18 @@ const noOverlappingOrders: Joi.CustomValidator = (v: Order[], helper) => {
     return v
 }
 
-export { nonZeroDuration, noOverlappingOrders }
+const validScheduleJson: Joi.CustomValidator = (v, helper) => {
+    let schedule = {}
+    try {
+        schedule = JSON.parse(v)
+    }
+    catch {
+        return helper.error('validScheduleJson')
+    }
+    const { value, error } = ScheduleDataSchema.validate(schedule)
+    if (error) throw error
+    return JSON.stringify(value)
+}
+
+
+export { nonZeroDuration, noOverlappingOrders, validScheduleJson }
