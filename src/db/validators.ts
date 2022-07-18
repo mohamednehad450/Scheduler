@@ -1,5 +1,6 @@
 import Joi from "joi"
 import { config } from "../pi/gpio"
+import { nonZeroDuration, noOverlappingOrders } from "./customValidators"
 
 const Channel = Joi.number().valid(...config.validPins)
 
@@ -15,10 +16,21 @@ const PinPartialSchema = Joi.object({
 
 // Order doesn't have a partial schema because it's never updated 
 const OrderSchema = Joi.object({
-    duration: Joi.string().isoDuration().required(),
+    duration:
+        Joi.string()
+            .isoDuration()
+            .custom(nonZeroDuration)
+            .messages({ nonZeroDuration: "Duration cannot be less then 1" })
+            .required(),
     offset: Joi.string().isoDuration().required(),
     channel: Channel.required(),
 })
+
+const OrderListSchema = Joi.array()
+    .items(OrderSchema)
+    .min(1)
+    .custom(noOverlappingOrders)
+    .messages({ noOverlappingOrders: "Orders with the same channel cannot overlap" })
 
 const RecurrenceSchema = Joi.object({
     t: Joi.array().items(Joi.number().min(0).max(86399)),
@@ -75,7 +87,7 @@ const SchedulePartialSchema = Joi.object({
 const SequenceSchema = Joi.object({
     name: Joi.string().required(),
     active: Joi.boolean(),
-    orders: Joi.object({ create: Joi.array().items(OrderSchema).required() }).required(),
+    orders: Joi.object({ create: OrderListSchema.required() }).required(),
     lastRun: Joi.date(),
     scheduleId: Joi.number(),
     schedule: Joi.object({ create: ScheduleSchema.required() }),
@@ -84,7 +96,9 @@ const SequenceSchema = Joi.object({
 const SequencePartialSchema = Joi.object({
     name: Joi.string(),
     active: Joi.boolean(),
-    orders: Joi.object({ create: Joi.array().items(OrderSchema).required() }),
+    orders: Joi.object({
+        create: OrderListSchema.required(),
+    }),
     lastRun: Joi.date(),
     scheduleId: Joi.number(),
     schedule: Joi.object({ create: ScheduleSchema.required() }),
