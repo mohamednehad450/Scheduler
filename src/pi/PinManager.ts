@@ -1,5 +1,5 @@
 import EventEmitter from "events";
-import moment, { Duration } from "moment";
+import { duration } from "moment";
 import { AppDB } from "../db";
 import gpio, { config } from "./gpio";
 import { PinDbType, SequenceDBType } from "../db";
@@ -28,8 +28,7 @@ const pState: { [key in PinDbType['onState']]: boolean } = {
 
 type RunOrder = {
     pin: PinDbType
-    duration: Duration
-    offset: Duration
+
     startTimer: NodeJS.Timeout
     closeTimer: NodeJS.Timeout
 }
@@ -129,28 +128,30 @@ class PinManager extends EventEmitter implements GpioManager {
 
 
     run = (data: SequenceDBType) => {
-        for (const p of data.orders) {
-            if (this.reservedPins.has(p.channel)) {
-                throw new Error(`channel ${p.channel} is reserved by id: (${this.reservedPins.get(p.channel)})`)
+        if (this.orders.has(data.id)) {
+            this.emit('failed', 'run', data, `Sequence: ${data.name} is already.`)
+            return
+        }
+        for (const order of data.orders) {
+            if (this.reservedPins.has(order.channel)) {
+                this.emit('failed', 'run', data, `Pin: ${order.Pin.label} (channel: ${order.channel}) is reserved.`)
+                return
             }
-            if (!this.pins.has(p.channel)) {
-                throw new Error(`channel ${p.channel} is not defined`)
+            if (!this.pins.has(order.channel)) {
+                this.emit('failed', 'run', data, `Pin: ${order.Pin.label} (channel: ${order.channel}) is not loaded, reset PinManager.`)
+                return
             }
         }
 
 
         data.orders.map(p => this.reservedPins.set(p.channel, data.id))
 
-        const runOrders: RunOrder[] = data.orders.map(p => {
-            const pin = this.pins.get(p.channel)
-            if (!pin) throw new Error()
+        const runOrders: RunOrder[] = data.orders.map(order => {
+            const pin = this.pins.get(order.channel)
+            if (!pin) throw new Error('Impossible State')
 
-            const duration = moment.duration(p.duration)
-            const offset = moment.duration(p.offset)
             return {
                 pin,
-                duration,
-                offset,
                 startTimer: setTimeout(() => {
 
                     gpio.promise.write(pin.channel, pState[pin.onState])
@@ -158,32 +159,32 @@ class PinManager extends EventEmitter implements GpioManager {
                             // TODO
                         })
 
-                }, offset.asMilliseconds()),
+                }, duration(order.offset).asMilliseconds()),
                 closeTimer: setTimeout(() => {
 
-                    gpio.promise.write(p.channel, !pState[pin.onState])
+                    gpio.promise.write(order.channel, !pState[pin.onState])
                         .catch(err => {
                             // TODO
                         })
 
-                }, moment.duration(duration).add(offset).asMilliseconds())
+                }, duration(order.duration).add(order.offset).asMilliseconds())
             }
         })
-        const time = new Date()
-        const duration = Math.max(...runOrders.map(r => moment.duration(r.duration).add(r.offset).asMilliseconds())) + 10
+        const startTime = new Date()
+        const maxDuration = Math.max(...data.orders.map(r => duration(r.duration).add(r.offset).asMilliseconds())) + 10
         this.orders.set(data.id, {
             runOrders,
-            startTime: time,
+            startTime,
             clearTimer: setTimeout(
                 () => {
                     runOrders.forEach(r => this.reservedPins.delete(r.pin.channel))
                     this.orders.delete(data.id)
                     this.emit('stop', data.id)
                 },
-                Math.max(...runOrders.map(r => moment.duration(r.duration).add(r.offset).asMilliseconds())) + 10
+                maxDuration
             )
         })
-        this.emit('run', data.id, time, duration)
+        this.emit('run', data.id, startTime, maxDuration)
     }
 
 
