@@ -85,13 +85,15 @@ const noOverlappingOrders: Joi.CustomValidator = (v: Order[], helper) => {
     const errors: { index: number, overlappingIndexes: number[] }[] = []
 
     channels.forEach((orderArr) => {
-        // skip channels with only 1  orders
+        // skip channels with only 1 order
         if (orderArr.length <= 1) return
 
         orderArr.reverse().forEach((order, i, arr) => {
             const overlapping = getOverlappingOrders(order, arr.slice(i + 1))
-            // no
+
+            // No overlapping
             if (overlapping.length === 0) return
+
             errors.push({
                 index: order.i,
                 overlappingIndexes: overlapping.map(o => o.i)
