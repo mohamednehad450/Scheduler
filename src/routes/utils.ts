@@ -42,7 +42,7 @@ export const CRUD = <K, T>(app: Express, db: DB<K, T>, route: string, stringToKe
     })
 
     // Delete an object
-    app.delete(route, (req, res) => {
+    app.delete(route + "/:id", (req, res) => {
         db.remove(stringToKey(req.params.id))
             .then(() => {
                 res.json()
