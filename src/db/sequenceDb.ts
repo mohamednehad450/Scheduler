@@ -67,12 +67,17 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
 
         if (error) throw error
 
-        await this.prisma.order.deleteMany({ where: { sequenceId: id } })
+        const oldOrders = await this.prisma.order.findMany({ where: { sequenceId: id } })
+
         const newSeq = await this.prisma.sequence.update({
             where: { id },
             data,
             include: { schedule: true, orders: { include: { Pin: { 'select': { label: true } } } } }
         })
+
+        const deleteOldOrders = oldOrders.map(o => this.prisma.order.delete({ where: { id: o.id } }))
+        await this.prisma.$transaction(deleteOldOrders)
+
         this.emit('update', newSeq)
         return newSeq
     }
@@ -84,13 +89,17 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
 
         if (error) throw error
 
-        data.orders && await this.prisma.order.deleteMany({ where: { sequenceId: id } })
+        const oldOrders = data.orders ? await this.prisma.order.findMany({ where: { sequenceId: id } }) : []
 
         const newSeq = await this.prisma.sequence.update({
             where: { id },
             data,
             include: { schedule: true, orders: { include: { Pin: { 'select': { label: true } } } } }
         })
+
+        const deleteOldOrders = oldOrders.map(o => this.prisma.order.delete({ where: { id: o.id } }))
+        await this.prisma.$transaction(deleteOldOrders)
+
         this.emit('update', newSeq)
         return newSeq
     }
