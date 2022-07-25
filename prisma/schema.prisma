@@ -23,8 +23,8 @@ model Order {
   Pin     Pin @relation(fields: [channel], references: [channel])
   channel Int
 
-  duration String
-  offset   String
+  duration Int
+  offset   Int
 
   sequence   Sequence @relation(fields: [sequenceId], references: [id])
   sequenceId Int

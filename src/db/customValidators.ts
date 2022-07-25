@@ -1,15 +1,7 @@
 import Joi from "joi"
-import { duration } from "moment"
 import { ScheduleDataSchema } from "./validators"
 
-type Order = { duration: string, offset: string, channel: number, }
-
-const nonZeroDuration: Joi.CustomValidator = (value, helper) => {
-    if (duration(value).asMilliseconds() <= 0) {
-        return helper.error('nonZeroDuration')
-    }
-    return value
-}
+type Order = { duration: number, offset: number, channel: number, }
 
 
 type Period = { start: number, end: number }
@@ -59,8 +51,8 @@ const isOverlapping = (t1: Period, t2: Period): boolean => {
 }
 
 const getPeriodFromOrder = (order: Order) => ({
-    start: duration(order.offset).asMilliseconds(),
-    end: duration(order.offset).add(duration(order.duration)).asMilliseconds()
+    start: order.offset,
+    end: order.offset + order.duration
 })
 
 const getOverlappingOrders = (order: Order, arr: (Order & { i: number })[]): (Order & { i: number })[] => {
@@ -122,4 +114,4 @@ const validScheduleJson: Joi.CustomValidator = (v, helper) => {
 }
 
 
-export { nonZeroDuration, noOverlappingOrders, validScheduleJson }
+export { noOverlappingOrders, validScheduleJson }

@@ -1,5 +1,4 @@
 import EventEmitter from "events";
-import { duration } from "moment";
 import { AppDB } from "../db";
 import gpio, { config } from "./gpio";
 import { PinDbType, SequenceDBType } from "../db";
@@ -159,7 +158,7 @@ class PinManager extends EventEmitter implements GpioManager {
                             // TODO
                         })
 
-                }, duration(order.offset).asMilliseconds()),
+                }, order.offset),
                 closeTimer: setTimeout(() => {
 
                     gpio.promise.write(order.channel, !pState[pin.onState])
@@ -167,11 +166,11 @@ class PinManager extends EventEmitter implements GpioManager {
                             // TODO
                         })
 
-                }, duration(order.duration).add(order.offset).asMilliseconds())
+                }, order.duration + order.offset)
             }
         })
         const startTime = new Date()
-        const maxDuration = Math.max(...data.orders.map(r => duration(r.duration).add(r.offset).asMilliseconds())) + 10
+        const maxDuration = Math.max(...data.orders.map(r => r.duration + r.offset)) + 10
         this.orders.set(data.id, {
             runOrders,
             startTime,

@@ -1,6 +1,6 @@
 import Joi from "joi"
 import { config } from "../pi/gpio"
-import { nonZeroDuration, noOverlappingOrders, validScheduleJson } from "./customValidators"
+import { noOverlappingOrders, validScheduleJson } from "./customValidators"
 
 const Channel = Joi.number().valid(...config.validPins)
 
@@ -16,13 +16,12 @@ const PinPartialSchema = Joi.object({
 
 // Order doesn't have a partial schema because it's never updated 
 const OrderSchema = Joi.object({
-    duration:
-        Joi.string()
-            .isoDuration()
-            .custom(nonZeroDuration)
-            .messages({ nonZeroDuration: "Duration cannot be less then 1" })
-            .required(),
-    offset: Joi.string().isoDuration().required(),
+    duration: Joi.number()
+        .min(10)
+        .required(),
+    offset: Joi.number()
+        .min(0)
+        .required(),
     channel: Channel.required(),
 })
 
