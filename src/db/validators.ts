@@ -87,6 +87,15 @@ const SequencePartialSchema = Joi.object({
     schedule: Joi.object({ create: ScheduleSchema.required() }),
 }).oxor('schedule', 'scheduleId')
 
+type SequenceEvent = "run" | 'stop' | 'finish' | 'activate' | 'deactivate'
+const sequenceEvents: SequenceEvent[] = ["run", 'stop', 'finish', 'activate', 'deactivate']
+
+
+const SequenceEventSchema = Joi.object({
+    eventType: Joi.string().valid(...sequenceEvents).required(),
+    sequenceId: Joi.number().required(),
+    date: Joi.date().required(),
+})
 
 
 export {
@@ -99,5 +108,6 @@ export {
     OrderSchema,
     ScheduleDataSchema,
     RecurrenceSchema,
+    SequenceEventSchema,
 }
 

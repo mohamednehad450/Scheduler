@@ -72,6 +72,16 @@ export default (io: Server, db: AppDB) => {
             })
         })
 
+        // On sequence finish: update state and emit stop 
+        scheduler.on('finish', async (...args) => {
+            socket.emit('finish', ...args)
+            socket.emit('state', {
+                runningSequences: scheduler.running(),
+                pins: await scheduler.pinsStatus()
+            })
+        })
+
+
 
         // On sequence run: update state and emit run 
         scheduler.on('run', (...args) => {

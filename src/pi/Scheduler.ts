@@ -46,11 +46,19 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
             this.sequences.delete(seqId)
         })
 
-
+        const eventHandler = (event: string) => (id: SequenceDBType['id']) => {
+            this.emit(event, id)
+            this.db.sequenceEventsDb.emit({
+                sequenceId: id,
+                eventType: event,
+                date: new Date()
+            })
+        }
         // PinManager events pass through
         this.pinManager.on('pinChange', (...args) => this.emit('pinChange', ...args))
-        this.pinManager.on('stop', (...args) => this.emit('stop', ...args))
-        this.pinManager.on('run', (...args) => this.emit('run', ...args))
+        this.pinManager.on('stop', eventHandler('stop'))
+        this.pinManager.on('run', eventHandler('run'))
+        this.pinManager.on('finish', eventHandler('finish'))
     }
 
     isActive = (id: SequenceDBType['id']) => {

@@ -27,14 +27,12 @@ const pState: { [key in PinDbType['onState']]: boolean } = {
 
 type RunOrder = {
     pin: PinDbType
-
     startTimer: NodeJS.Timeout
     closeTimer: NodeJS.Timeout
 }
 
 type SequenceOrder = {
     runOrders: RunOrder[]
-    startTime: Date
     clearTimer: NodeJS.Timeout
 }
 
@@ -169,21 +167,19 @@ class PinManager extends EventEmitter implements GpioManager {
                 }, order.duration + order.offset)
             }
         })
-        const startTime = new Date()
         const maxDuration = Math.max(...data.orders.map(r => r.duration + r.offset)) + 10
         this.orders.set(data.id, {
             runOrders,
-            startTime,
             clearTimer: setTimeout(
                 () => {
                     runOrders.forEach(r => this.reservedPins.delete(r.pin.channel))
                     this.orders.delete(data.id)
-                    this.emit('stop', data.id)
+                    this.emit('finish', data.id)
                 },
                 maxDuration
             )
         })
-        this.emit('run', data.id, startTime, maxDuration)
+        this.emit('run', data.id)
     }
 
 

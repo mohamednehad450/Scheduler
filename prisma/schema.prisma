@@ -28,7 +28,6 @@ model Order {
 
   sequence   Sequence @relation(fields: [sequenceId], references: [id])
   sequenceId Int
-
 }
 
 model Schedule {
@@ -39,11 +38,20 @@ model Schedule {
 }
 
 model Sequence {
-  id         Int       @id @default(autoincrement())
-  name       String
-  orders     Order[]
-  lastRun    DateTime?
-  schedule   Schedule  @relation(fields: [scheduleId], references: [id])
-  scheduleId Int
-  active     Boolean   @default(false)
+  id            Int             @id @default(autoincrement())
+  name          String
+  orders        Order[]
+  lastRun       DateTime?
+  schedule      Schedule        @relation(fields: [scheduleId], references: [id])
+  scheduleId    Int
+  active        Boolean         @default(false)
+  sequenceEvent SequenceEvent[]
+}
+
+model SequenceEvent {
+  id         Int      @id @default(autoincrement())
+  date       DateTime
+  sequenceId Int
+  sequence   Sequence @relation(fields: [sequenceId], references: [id])
+  eventType  String
 }

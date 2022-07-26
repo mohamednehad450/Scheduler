@@ -75,15 +75,29 @@ class Sequence {
     }
 
     private activate = (schedule: ScheduleDbType) => {
-        this.deactivate()
+        if (!this.interval) {
+            this.db.sequenceEventsDb.emit({
+                sequenceId: this.id,
+                date: new Date(),
+                eventType: 'activate'
+            })
+        } else {
+            this.interval.clear()
+        }
         this.interval = setInterval(() => this.run(), JSON.parse(schedule.scheduleJson))
         return
-
     }
 
     private deactivate = () => {
-        this.interval?.clear()
-        this.interval = undefined
+        if (this.interval) {
+            this.interval?.clear()
+            this.interval = undefined
+            this.db.sequenceEventsDb.emit({
+                sequenceId: this.id,
+                date: new Date(),
+                eventType: 'deactivate'
+            })
+        }
     }
 
     isActive = (): boolean => {
