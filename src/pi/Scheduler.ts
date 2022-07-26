@@ -7,7 +7,6 @@ import EventEmitter from 'events'
 
 interface SchedulerInterface<K> {
     isActive: (id: K,) => boolean
-    active: () => K[]
     run: (id: K) => Promise<void>
     running: () => K[]
     stop: (id: K) => Promise<void>
@@ -61,13 +60,6 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
             throw new Error('Missing sequence or invalid sequence ID')
         }
         return seq.isActive()
-    }
-
-
-    active = () => {
-        return [...this.sequences.values()]
-            .filter(s => s.isActive())
-            .map((s => s.id))
     }
 
 

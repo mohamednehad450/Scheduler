@@ -82,7 +82,6 @@ export default (io: Server, db: AppDB) => {
         async function sendState() {
             socket.emit('state', {
                 runningSequences: scheduler.running(),
-                activeSequences: scheduler.active(),
                 pins: await scheduler.pinsStatus()
             })
         }
