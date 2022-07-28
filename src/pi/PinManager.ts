@@ -4,18 +4,13 @@ import gpio, { config } from "./gpio";
 import { PinDbType, SequenceDBType } from "../db";
 
 
-export type PinStatus = {
-    pin: PinDbType,
-    running: boolean,
-    err: Error | null | undefined,
-    reservedBy?: SequenceDBType['id']
-}
 interface GpioManager {
     isRunning: (id: SequenceDBType['id'],) => boolean
     run: (data: SequenceDBType) => void
     running: () => SequenceDBType['id'][]
     stop: (id: SequenceDBType['id']) => void
-    pinsStatus: () => Promise<PinStatus[]>
+    runningChannel: () => Promise<PinDbType['channel'][]>
+    getReservedPins: () => { pin: PinDbType, sequenceId: SequenceDBType['id'] }[]
     rest: () => void
 }
 
@@ -108,7 +103,12 @@ class PinManager extends EventEmitter implements GpioManager {
 
         gpio.addListener('change', (channel, HIGH) => {
             const pin = this.pins.get(channel)
-            pin && this.emit('pinChange', pin.channel, pin.onState === "HIGH" ? !!HIGH : !HIGH, this.reservedPins.get(channel))
+            if (!pin) {
+                // TODO
+                return
+            }
+            const on = pin.onState === "HIGH" ? !!HIGH : !HIGH
+            pin && this.emit('channelChange', pin.channel, on)
         })
 
     }
@@ -201,27 +201,27 @@ class PinManager extends EventEmitter implements GpioManager {
         this.emit('stop', id)
     };
 
-    pinsStatus = async () => {
-        const status: PinStatus[] = []
+    runningChannel = async () => {
+        const status: PinDbType['channel'][] = []
         for (const [_, pin] of this.pins) {
             const HIGH = await gpio.promise.read(pin.channel)
                 .catch(err => {
-                    status.push({
-                        pin,
-                        running: false,
-                        err: err,
-                        reservedBy: this.reservedPins.get(pin.channel)
-                    })
-                })
-            status.push({
-                pin,
-                running: pin.onState === "HIGH" ? !!HIGH : !HIGH,
-                err: null,
-                reservedBy: this.reservedPins.get(pin.channel)
-            })
+                    // TODO
+                });
+            (pin.onState === "HIGH" ? !!HIGH : !HIGH) && status.push(pin.channel)
         }
         return status
     };
+
+    getReservedPins = () => {
+        return [...this.reservedPins.entries()].map(([channel, sequenceId]) => {
+            const pin = this.pins.get(channel)
+            if (!pin) {
+                throw new Error('Invalid State: Unknown channel reserved ')
+            }
+            return { pin, sequenceId }
+        })
+    }
 
     rest = () => {
         // TODO

@@ -1,6 +1,6 @@
 
 import { AppDB } from '../db'
-import PinManager, { PinStatus } from './PinManager'
+import PinManager from './PinManager'
 import Sequence from './Sequence'
 import { PinDbType, SequenceDBType } from '../db'
 import EventEmitter from 'events'
@@ -10,7 +10,8 @@ interface SchedulerInterface<K> {
     run: (id: K) => Promise<void>
     running: () => K[]
     stop: (id: K) => Promise<void>
-    pinsStatus: () => Promise<PinStatus[]>
+    runningChannel: () => Promise<PinDbType['channel'][]>
+    getReservedPins: () => { pin: PinDbType, sequenceId: SequenceDBType['id'] }[]
 }
 
 class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBType['id']> {
@@ -55,7 +56,7 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
             })
         }
         // PinManager events pass through
-        this.pinManager.on('pinChange', (...args) => this.emit('pinChange', ...args))
+        this.pinManager.on('channelChange', (...args) => this.emit('channelChange', ...args))
         this.pinManager.on('stop', eventHandler('stop'))
         this.pinManager.on('run', eventHandler('run'))
         this.pinManager.on('finish', eventHandler('finish'))
@@ -90,7 +91,8 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
     }
 
 
-    pinsStatus = () => this.pinManager.pinsStatus();
+    getReservedPins: () => { pin: PinDbType; sequenceId: number }[] = () => this.pinManager.getReservedPins()
+    runningChannel = () => this.pinManager.runningChannel();
     running = () => this.pinManager.running();
 
 }

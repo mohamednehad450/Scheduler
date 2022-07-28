@@ -55,11 +55,8 @@ export default (io: Server, db: AppDB) => {
         const tickInterval = setInterval(() => socket.emit('tick', new Date()), 1000)
 
         // On pin change: update state and emit pinChange 
-        scheduler.on('pinChange', async (...args) => {
-            socket.emit('pinChange', ...args)
-            socket.emit('state', {
-                pins: await scheduler.pinsStatus()
-            })
+        scheduler.on('channelChange', async (...args) => {
+            socket.emit('channelChange', ...args)
         })
 
 
@@ -67,8 +64,8 @@ export default (io: Server, db: AppDB) => {
         scheduler.on('stop', async (...args) => {
             socket.emit('stop', ...args)
             socket.emit('state', {
+                reservedPins: scheduler.getReservedPins(),
                 runningSequences: scheduler.running(),
-                pins: await scheduler.pinsStatus()
             })
         })
 
@@ -76,8 +73,8 @@ export default (io: Server, db: AppDB) => {
         scheduler.on('finish', async (...args) => {
             socket.emit('finish', ...args)
             socket.emit('state', {
+                reservedPins: scheduler.getReservedPins(),
                 runningSequences: scheduler.running(),
-                pins: await scheduler.pinsStatus()
             })
         })
 
@@ -86,13 +83,17 @@ export default (io: Server, db: AppDB) => {
         // On sequence run: update state and emit run 
         scheduler.on('run', (...args) => {
             socket.emit('run', ...args)
-            socket.emit('state', { runningSequences: scheduler.running(), })
+            socket.emit('state', {
+                runningSequences: scheduler.running(),
+                reservedPins: scheduler.getReservedPins(),
+            })
         })
 
         async function sendState() {
             socket.emit('state', {
                 runningSequences: scheduler.running(),
-                pins: await scheduler.pinsStatus()
+                reservedPins: scheduler.getReservedPins(),
+                runningChannel: await scheduler.runningChannel(),
             })
         }
         sendState()
