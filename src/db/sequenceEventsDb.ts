@@ -38,4 +38,5 @@ class SequenceEventsDb implements EventsDB<SequenceEvent['id'], SequenceEvent> {
     list = (sequenceId: number) => this.prisma.sequenceEvent.findMany({ where: { sequenceId } })
 }
 
-export default SequenceEventsDb
+export { SequenceEventsDb }
+export type { SequenceEvent as SequenceEventDBType }

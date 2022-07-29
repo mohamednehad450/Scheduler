@@ -1,8 +1,8 @@
 import { PrismaClient } from "@prisma/client"
 import { PinDb, PinDbType } from "./pinsDb"
-import { ScheduleDb } from "./scheduleDb"
+import { ScheduleDb, ScheduleDbType } from "./scheduleDb"
 import { SequenceDb, SequenceDBType } from "./sequenceDb"
-import SequenceEventsDb from "./sequenceEventsDb"
+import { SequenceEventsDb, SequenceEventDBType } from "./sequenceEventsDb"
 import { PinSchema, PinPartialSchema, SequencePartialSchema, SequenceSchema, ScheduleSchema, SchedulePartialSchema, SequenceEventSchema } from "./validators"
 
 type AppDB = {
@@ -29,4 +29,4 @@ const appDb: AppDB = {
 }
 
 export { appDb }
-export type { AppDB, SequenceDBType, PinDbType }
+export type { AppDB, SequenceDBType, PinDbType, ScheduleDbType, SequenceEventDBType }
