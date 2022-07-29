@@ -190,13 +190,15 @@ class PinManager extends EventEmitter implements GpioManager {
             return
         }
 
+        const pins = new Map<PinDbType['channel'], PinDbType>()
         seqOrder.runOrders.forEach(({ startTimer, closeTimer, pin, }) => {
             clearTimeout(startTimer)
             clearTimeout(closeTimer)
-            gpio.promise.write(pin.channel, !pState[pin.onState])
+            pins.set(pin.channel, pin)
             this.reservedPins.delete(pin.channel)
         })
-        clearTimeout(seqOrder.clearTimer)
+        clearTimeout(seqOrder.clearTimer);
+        [...pins.values()].forEach((pin) => gpio.promise.write(pin.channel, !pState[pin.onState]))
         this.orders.delete(id)
         this.emit('stop', id)
     };
