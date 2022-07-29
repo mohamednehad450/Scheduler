@@ -9,4 +9,13 @@ interface DB<K, T> extends EventEmitter {
     list: () => Promise<T[]>
 }
 
-export type { DB }
+
+interface EventsDB<K, T> {
+    emit: (obj: any) => Promise<T>
+    get: (id: K,) => Promise<T | null>
+    remove: (id: K) => Promise<void>
+    listAll: () => Promise<T[]>
+    list: (where: any) => Promise<T[]>
+}
+
+export type { DB, EventsDB }

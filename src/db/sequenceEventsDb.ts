@@ -1,10 +1,11 @@
-import { PrismaClient } from "@prisma/client"
+import { PrismaClient, SequenceEvent } from "@prisma/client"
 import { ObjectSchema } from "joi"
+import { EventsDB } from "./db"
 
 
 
 
-class SequenceEventsDb {
+class SequenceEventsDb implements EventsDB<SequenceEvent['id'], SequenceEvent> {
 
     prisma: PrismaClient
     validator: ObjectSchema
