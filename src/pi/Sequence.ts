@@ -49,6 +49,9 @@ class Sequence {
         this.db.sequencesDb.addListener('update', update)
         this.db.sequencesDb.addListener('remove', remove)
         this.db.scheduleDb.addListener('update', updateSchedule)
+
+        if (seq.active) this.activate(seq.schedule)
+
     }
 
 
@@ -58,6 +61,9 @@ class Sequence {
                 if (!seq) return
                 this.pm.run(seq)
                 this.db.sequencesDb.update(this.id, { lastRun: new Date() })
+                    .catch((err) => {
+                        // TODO
+                    })
             })
             .catch(err => {
                 // TODO
