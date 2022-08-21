@@ -34,8 +34,8 @@ class SequenceEventsDb implements EventsDB<SequenceEvent['id'], SequenceEvent> {
     }
 
 
-    listAll = () => this.prisma.sequenceEvent.findMany()
-    list = (sequenceId: number) => this.prisma.sequenceEvent.findMany({ where: { sequenceId } })
+    listAll = () => this.prisma.sequenceEvent.findMany({ orderBy: { date: 'desc' } })
+    list = (sequenceId: number) => this.prisma.sequenceEvent.findMany({ where: { sequenceId }, orderBy: { date: 'desc' } })
 }
 
 export { SequenceEventsDb }
