@@ -1,5 +1,5 @@
+import { time } from "cron";
 import Joi from "joi"
-import { ScheduleDataSchema } from "./validators"
 
 type Order = { duration: number, offset: number, channel: number, }
 
@@ -100,18 +100,17 @@ const noOverlappingOrders: Joi.CustomValidator = (v: Order[], helper) => {
     return v
 }
 
-const validScheduleJson: Joi.CustomValidator = (v, helper) => {
-    let schedule = {}
+
+const cronValidation: Joi.CustomValidator = (str: string, helper) => {
     try {
-        schedule = JSON.parse(v)
+        time(str)
+        return str
     }
-    catch {
-        return helper.error('validScheduleJson')
+    catch (err: any) {
+        return helper.error('cronValidation', { value: err.message })
     }
-    const { value, error } = ScheduleDataSchema.validate(schedule)
-    if (error) throw error
-    return JSON.stringify(value)
 }
 
 
-export { noOverlappingOrders, validScheduleJson }
+
+export { noOverlappingOrders, cronValidation }

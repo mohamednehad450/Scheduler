@@ -1,4 +1,5 @@
 import { Express } from 'express'
+import { AppDB } from '../db'
 
 import { DB, EventsDB, } from "../db/db"
 
@@ -130,3 +131,30 @@ export const Events = <K, T>(app: Express, db: EventsDB<K, T>, route: string, st
             })
     })
 }
+
+export const cronSequenceLink = (app: Express, db: AppDB['cronSequenceLink'], route: string, stringToKey: (s: string) => number) => {
+
+    // Create new object
+    app.post(route + '/sequence/:id', (req, res) => {
+        db.linkSequence(stringToKey(req.params.id), req.body)
+            .then(() => {
+                res.send()
+            })
+            .catch(err => {
+                res.status(500)
+                res.json(err)
+            })
+    })
+    // Create new object
+    app.post(route + '/cron/:id', (req, res) => {
+        db.linkCron(stringToKey(req.params.id), req.body)
+            .then(() => {
+                res.send()
+            })
+            .catch(err => {
+                res.status(500)
+                res.json(err)
+            })
+    })
+}
+

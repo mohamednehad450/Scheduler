@@ -1,9 +1,10 @@
 
-import { AppDB } from '../db'
+import { AppDB, } from '../db'
 import PinManager from './PinManager'
 import Sequence from './Sequence'
-import { PinDbType, SequenceDBType } from '../db'
+import { PinDbType, SequenceDBType, CronDbType } from '../db'
 import EventEmitter from 'events'
+import { cronTrigger } from './utils'
 
 interface SchedulerInterface<K> {
     isActive: (id: K,) => boolean
@@ -21,17 +22,26 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
     db: AppDB
 
 
-
     constructor(db: AppDB) {
         super()
         this.db = db
         this.pinManager = new PinManager(db.pinsDb)
         this.sequences = new Map()
 
+
+        const runIfActive = (ids: CronDbType['CronSequence']) => {
+            ids.forEach(({ sequenceId }) => {
+                if (this.sequences.get(sequenceId)?.isActive()) {
+                    this.sequences.get(sequenceId)?.run()
+                }
+            })
+        }
+
         db.sequencesDb.list()
             .then(seqData => {
                 seqData.forEach(d => this.sequences.set(d.id, new Sequence(d, this.pinManager, this.db)))
             })
+            .then(() => cronTrigger(db, runIfActive))
             .catch(err => {
                 // TODO
             })

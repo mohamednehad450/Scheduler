@@ -1,12 +1,16 @@
 
 import EventEmitter from "events"
-import { PrismaClient, Schedule } from '@prisma/client'
+import { PrismaClient, Cron } from '@prisma/client'
 import { DB } from "./db";
 import { ObjectSchema } from "joi";
 
-type ScheduleDbType = Schedule
+interface CronDbType extends Cron {
+    CronSequence: {
+        sequenceId: number
+    }[]
+}
 
-class ScheduleDb extends EventEmitter implements DB<Schedule['id'], ScheduleDbType> {
+class CronDb extends EventEmitter implements DB<Cron['id'], CronDbType> {
 
     validator: ObjectSchema
     partialValidator: ObjectSchema
@@ -23,15 +27,15 @@ class ScheduleDb extends EventEmitter implements DB<Schedule['id'], ScheduleDbTy
 
         if (error) throw error
 
-        const newSchedule = await this.prisma.schedule.create({ data })
+        const newCron = await this.prisma.cron.create({ data, include: { CronSequence: { select: { sequenceId: true } } } })
 
-        this.emit('insert', newSchedule)
-        return newSchedule
+        this.emit('insert', newCron)
+        return newCron
     };
 
 
     get = (id: number) => {
-        return this.prisma.schedule.findUnique({ where: { id } })
+        return this.prisma.cron.findUnique({ where: { id }, include: { CronSequence: { select: { sequenceId: true } } } })
     }
 
 
@@ -42,22 +46,22 @@ class ScheduleDb extends EventEmitter implements DB<Schedule['id'], ScheduleDbTy
 
 
     list = () => {
-        return this.prisma.schedule.findMany()
+        return this.prisma.cron.findMany({ include: { CronSequence: { select: { sequenceId: true } } } })
     }
 
 
-    set = async (id: ScheduleDbType['id'], arg: any) => {
+    set = async (id: CronDbType['id'], arg: any) => {
         const { value: data, error } = this.validator.validate(arg)
 
         if (error) throw error
 
-        console.log(data)
-        const newSchedule = await this.prisma.schedule.update({
+        const newCron = await this.prisma.cron.update({
             where: { id },
             data,
+            include: { CronSequence: { select: { sequenceId: true } } }
         })
-        this.emit('update', newSchedule)
-        return newSchedule
+        this.emit('update', newCron)
+        return newCron
     }
 
 
@@ -67,14 +71,15 @@ class ScheduleDb extends EventEmitter implements DB<Schedule['id'], ScheduleDbTy
 
         if (error) throw error
 
-        const newSchedule = await this.prisma.schedule.update({
+        const newCron = await this.prisma.cron.update({
             where: { id },
             data,
+            include: { CronSequence: { select: { sequenceId: true } } }
         })
-        this.emit('update', newSchedule)
-        return newSchedule
+        this.emit('update', newCron)
+        return newCron
     }
 }
 
-export { ScheduleDb }
-export type { ScheduleDbType }
+export { CronDb }
+export type { CronDbType }

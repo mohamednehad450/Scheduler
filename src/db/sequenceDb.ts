@@ -1,6 +1,6 @@
 
 import EventEmitter from "events"
-import { Sequence, Schedule, Order, PrismaClient, } from '@prisma/client'
+import { Sequence, Order, PrismaClient, Cron, } from '@prisma/client'
 import { DB } from "./db";
 import { ObjectSchema } from "joi";
 
@@ -8,7 +8,7 @@ import { ObjectSchema } from "joi";
 
 type SequenceWithOrders = (Sequence & { orders: (Order & { Pin: { label: string } })[] })
 
-type SequenceDBType = SequenceWithOrders & { schedule: Schedule }
+type SequenceDBType = SequenceWithOrders & { CronSequence: { cron: Cron }[] }
 
 
 class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBType> {
@@ -32,7 +32,7 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
 
         const newSeq = await this.prisma.sequence.create({
             data: value,
-            include: { schedule: true, orders: { include: { Pin: { 'select': { label: true } } } } }
+            include: { CronSequence: { select: { cron: true } }, orders: { include: { Pin: { 'select': { label: true } } } } }
         })
         this.emit('insert', newSeq)
         return newSeq
@@ -41,7 +41,7 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
 
     get = (id: SequenceDBType['id']) => {
         return this.prisma.sequence.findUnique({
-            where: { id }, include: { schedule: true, orders: { include: { Pin: { 'select': { label: true } } } } }
+            where: { id }, include: { CronSequence: { select: { cron: true } }, orders: { include: { Pin: { 'select': { label: true } } } } }
         })
     }
 
@@ -57,7 +57,7 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
 
     list = async () => {
         return this.prisma.sequence.findMany({
-            include: { schedule: true, orders: { include: { Pin: { 'select': { label: true } } } } }
+            include: { CronSequence: { select: { cron: true } }, orders: { include: { Pin: { 'select': { label: true } } } } }
         })
     }
 
@@ -73,7 +73,7 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
         const newSeq = await this.prisma.sequence.update({
             where: { id },
             data,
-            include: { schedule: true, orders: { include: { Pin: { 'select': { label: true } } } } }
+            include: { CronSequence: { select: { cron: true } }, orders: { include: { Pin: { 'select': { label: true } } } } }
         })
 
         const deleteOldOrders = oldOrders.map(o => this.prisma.order.delete({ where: { id: o.id } }))
@@ -95,7 +95,7 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
         const newSeq = await this.prisma.sequence.update({
             where: { id },
             data,
-            include: { schedule: true, orders: { include: { Pin: { 'select': { label: true } } } } }
+            include: { CronSequence: { select: { cron: true } }, orders: { include: { Pin: { 'select': { label: true } } } } }
         })
 
         const deleteOldOrders = oldOrders.map(o => this.prisma.order.delete({ where: { id: o.id } }))

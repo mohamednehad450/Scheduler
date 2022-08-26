@@ -30,11 +30,19 @@ model Order {
   sequenceId Int
 }
 
-model Schedule {
-  id           Int        @id @default(autoincrement())
-  scheduleJson String
+model CronSequence {
+  id         Int      @id @default(autoincrement())
+  cron       Cron     @relation(fields: [cronId], references: [id])
+  sequence   Sequence @relation(fields: [sequenceId], references: [id])
+  cronId     Int
+  sequenceId Int
+}
+
+model Cron {
+  id           Int            @id @default(autoincrement())
+  cron         String
   label        String
-  sequence     Sequence[]
+  CronSequence CronSequence[]
 }
 
 model Sequence {
@@ -42,10 +50,9 @@ model Sequence {
   name          String
   orders        Order[]
   lastRun       DateTime?
-  schedule      Schedule        @relation(fields: [scheduleId], references: [id])
-  scheduleId    Int
   active        Boolean         @default(false)
   sequenceEvent SequenceEvent[]
+  CronSequence  CronSequence[]
 }
 
 model SequenceEvent {
