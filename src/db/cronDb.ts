@@ -40,7 +40,9 @@ class CronDb extends EventEmitter implements DB<Cron['id'], CronDbType> {
 
 
     remove = async (id: number) => {
-        await this.prisma.sequence.delete({ where: { id } })
+        const links = this.prisma.cronSequence.deleteMany({ where: { cronId: id } })
+        const cron = this.prisma.cron.delete({ where: { id } })
+        await this.prisma.$transaction([links, cron])
         this.emit('remove', id)
     }
 
