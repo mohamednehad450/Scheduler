@@ -49,8 +49,9 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
     remove = async (id: SequenceDBType['id']) => {
         const orders = this.prisma.order.deleteMany({ where: { sequenceId: id } })
         const events = this.prisma.sequenceEvent.deleteMany({ where: { sequenceId: id } })
+        const links = this.prisma.cronSequence.deleteMany({ where: { sequenceId: id } })
         const sequence = this.prisma.sequence.delete({ where: { id } })
-        await this.prisma.$transaction([orders, events, sequence])
+        await this.prisma.$transaction([orders, events, links, sequence])
         this.emit('remove', id)
     }
 
