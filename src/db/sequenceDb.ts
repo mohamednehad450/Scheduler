@@ -69,16 +69,14 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
 
         if (error) throw error
 
-        const oldOrders = await this.prisma.order.findMany({ where: { sequenceId: id } })
-
-        const newSeq = await this.prisma.sequence.update({
+        const removeOldOrders = this.prisma.order.deleteMany({ where: { sequenceId: id } })
+        const createNewSequence = this.prisma.sequence.update({
             where: { id },
             data,
             include: { CronSequence: { select: { cron: true } }, orders: { include: { Pin: { 'select': { label: true } } } } }
         })
 
-        const deleteOldOrders = oldOrders.map(o => this.prisma.order.delete({ where: { id: o.id } }))
-        await this.prisma.$transaction(deleteOldOrders)
+        const [_, newSeq] = await this.prisma.$transaction([removeOldOrders, createNewSequence])
 
         this.emit('update', newSeq)
         return newSeq
@@ -91,19 +89,24 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
 
         if (error) throw error
 
-        const oldOrders = data.orders ? await this.prisma.order.findMany({ where: { sequenceId: id } }) : []
-
-        const newSeq = await this.prisma.sequence.update({
+        const removeOldOrders = data.orders ? this.prisma.order.deleteMany({ where: { sequenceId: id } }) : null
+        const createNewSequence = this.prisma.sequence.update({
             where: { id },
             data,
             include: { CronSequence: { select: { cron: true } }, orders: { include: { Pin: { 'select': { label: true } } } } }
         })
 
-        const deleteOldOrders = oldOrders.map(o => this.prisma.order.delete({ where: { id: o.id } }))
-        await this.prisma.$transaction(deleteOldOrders)
+        if (removeOldOrders) {
+            const [_, newSeq] = await this.prisma.$transaction([removeOldOrders, createNewSequence])
+            this.emit('update', newSeq)
+            return newSeq
+        } else {
+            const newSeq = await createNewSequence
+            this.emit('update', newSeq)
+            return newSeq
+        }
 
-        this.emit('update', newSeq)
-        return newSeq
+
     }
 }
 
