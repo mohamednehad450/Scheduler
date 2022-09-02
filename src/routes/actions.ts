@@ -93,7 +93,7 @@ export default (io: Server, db: AppDB) => {
             socket.emit('state', {
                 runningSequences: scheduler.running(),
                 reservedPins: scheduler.getReservedPins(),
-                runningChannel: await scheduler.runningChannel(),
+                channelsStatus: await scheduler.channelsStatus(),
             })
         }
         sendState()

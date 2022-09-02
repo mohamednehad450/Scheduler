@@ -9,7 +9,7 @@ interface GpioManager {
     run: (data: SequenceDBType) => void
     running: () => SequenceDBType['id'][]
     stop: (id: SequenceDBType['id']) => void
-    runningChannel: () => Promise<PinDbType['channel'][]>
+    channelsStatus: () => Promise<{ [key: PinDbType['channel']]: boolean }>
     getReservedPins: () => { pin: PinDbType, sequenceId: SequenceDBType['id'] }[]
     rest: () => void
 }
@@ -100,17 +100,6 @@ class PinManager extends EventEmitter implements GpioManager {
             }
             this.pins.delete(channel)
         })
-
-        gpio.addListener('change', (channel, HIGH) => {
-            const pin = this.pins.get(channel)
-            if (!pin) {
-                // TODO
-                return
-            }
-            const on = pin.onState === "HIGH" ? !!HIGH : !HIGH
-            pin && this.emit('channelChange', pin.channel, on)
-        })
-
     }
 
 
@@ -152,14 +141,15 @@ class PinManager extends EventEmitter implements GpioManager {
                 startTimer: setTimeout(() => {
 
                     gpio.promise.write(pin.channel, pState[pin.onState])
+                        .then(() => this.emit('channelChange', { [pin.channel]: true }))
                         .catch(err => {
                             // TODO
                         })
 
                 }, order.offset),
                 closeTimer: setTimeout(() => {
-
                     gpio.promise.write(order.channel, !pState[pin.onState])
+                        .then(() => this.emit('channelChange', { [pin.channel]: false }))
                         .catch(err => {
                             // TODO
                         })
@@ -198,19 +188,22 @@ class PinManager extends EventEmitter implements GpioManager {
             this.reservedPins.delete(pin.channel)
         })
         clearTimeout(seqOrder.clearTimer);
-        [...pins.values()].forEach((pin) => gpio.promise.write(pin.channel, !pState[pin.onState]))
+        [...pins.values()].forEach((pin) => {
+            gpio.promise.write(pin.channel, !pState[pin.onState])
+            this.emit('channelChange', { [pin.channel]: false })
+        })
         this.orders.delete(id)
         this.emit('stop', id)
     };
 
-    runningChannel = async () => {
-        const status: PinDbType['channel'][] = []
+    channelsStatus = async () => {
+        const status: { [key: PinDbType['channel']]: boolean } = {}
         for (const [_, pin] of this.pins) {
             const HIGH = await gpio.promise.read(pin.channel)
                 .catch(err => {
                     // TODO
                 });
-            (pin.onState === "HIGH" ? !!HIGH : !HIGH) && status.push(pin.channel)
+            status[pin.channel] = (pin.onState === "HIGH" ? !!HIGH : !HIGH)
         }
         return status
     };

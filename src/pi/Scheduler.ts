@@ -11,7 +11,7 @@ interface SchedulerInterface<K> {
     run: (id: K) => Promise<void>
     running: () => K[]
     stop: (id: K) => Promise<void>
-    runningChannel: () => Promise<PinDbType['channel'][]>
+    channelsStatus: () => Promise<{ [key: PinDbType['channel']]: boolean }>
     getReservedPins: () => { pin: PinDbType, sequenceId: SequenceDBType['id'] }[]
 }
 
@@ -102,7 +102,7 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
 
 
     getReservedPins: () => { pin: PinDbType; sequenceId: number }[] = () => this.pinManager.getReservedPins()
-    runningChannel = () => this.pinManager.runningChannel();
+    channelsStatus: () => Promise<{ [key: number]: boolean }> = () => this.pinManager.channelsStatus();
     running = () => this.pinManager.running();
 
 }
