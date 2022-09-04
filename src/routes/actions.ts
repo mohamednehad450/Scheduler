@@ -51,8 +51,15 @@ export default (io: Server, db: AppDB) => {
         console.log('Socket Connected.')
         console.log(`Socket ID: ${socket.id}`)
 
-        // Send time every second
-        const tickInterval = setInterval(() => socket.emit('tick', new Date()), 1000)
+        // Send time every TICK
+        const TICK = 1000
+        let tick: NodeJS.Timeout
+        const tickHandler = (cb: (d: Date) => void) => {
+            const d = new Date()
+            cb(d)
+            tick = setTimeout(() => tickHandler(cb), TICK - (d.getTime() % TICK))
+        }
+        tickHandler((d) => socket.emit('tick', d))
 
         // On pin change: update state and emit pinChange 
         scheduler.on('channelChange', async (...args) => {
@@ -110,7 +117,7 @@ export default (io: Server, db: AppDB) => {
         socket.on('disconnect', () => {
             scheduler.removeAllListeners()
             socket.removeAllListeners()
-            clearInterval(tickInterval)
+            clearTimeout(tick)
         })
     })
 }
