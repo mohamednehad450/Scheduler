@@ -61,40 +61,42 @@ export default (io: Server, db: AppDB) => {
         }
         tickHandler((d) => socket.emit('tick', d))
 
-        // On pin change: update state and emit pinChange 
-        scheduler.on('channelChange', async (...args) => {
+
+        // On channel change: update state and emit pinChange 
+        const channelChange = async (...args: any) => {
             socket.emit('channelChange', ...args)
-        })
+        }
 
 
         // On sequence stop: update state and emit stop 
-        scheduler.on('stop', async (...args) => {
+        const stop = async (...args: any) => {
             socket.emit('stop', ...args)
             socket.emit('state', {
                 reservedPins: scheduler.getReservedPins(),
                 runningSequences: scheduler.running(),
             })
-        })
+        }
+
 
         // On sequence finish: update state and emit stop 
-        scheduler.on('finish', async (...args) => {
+        const finish = async (...args: any) => {
             socket.emit('finish', ...args)
             socket.emit('state', {
                 reservedPins: scheduler.getReservedPins(),
                 runningSequences: scheduler.running(),
             })
-        })
-
+        }
 
 
         // On sequence run: update state and emit run 
-        scheduler.on('run', (...args) => {
+        const run = (...args: any) => {
             socket.emit('run', ...args)
             socket.emit('state', {
                 runningSequences: scheduler.running(),
                 reservedPins: scheduler.getReservedPins(),
             })
-        })
+        }
+
 
         async function sendState() {
             socket.emit('state', {
@@ -113,9 +115,17 @@ export default (io: Server, db: AppDB) => {
         addAction(ACTIONS.RUN, scheduler.run, socket)
         addAction(ACTIONS.STOP, scheduler.stop, socket)
 
+        scheduler.on('channelChange', channelChange)
+        scheduler.on('stop', stop)
+        scheduler.on('run', run)
+        scheduler.on('finish', finish)
+
 
         socket.on('disconnect', () => {
-            scheduler.removeAllListeners()
+            scheduler.removeListener('channelChange', channelChange)
+            scheduler.removeListener('run', run)
+            scheduler.removeListener('stop', stop)
+            scheduler.removeListener('finish', finish)
             socket.removeAllListeners()
             clearTimeout(tick)
         })
