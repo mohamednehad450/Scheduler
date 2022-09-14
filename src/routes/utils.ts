@@ -97,7 +97,7 @@ export const Events = <K, T>(app: Express, db: EventsDB<K, T>, route: string, st
 
     // List Events by parameter
     app.get(route + 's/:id', (req, res) => {
-        db.list(stringToKey(req.params.id))
+        db.listByObject(stringToKey(req.params.id))
             .then(m => {
                 res.json(m)
             })
@@ -130,6 +130,31 @@ export const Events = <K, T>(app: Express, db: EventsDB<K, T>, route: string, st
                 res.json(err)
             })
     })
+
+    // Delete Events by parameter
+    app.delete(route + "s/:id", (req, res) => {
+        db.removeByObject(stringToKey(req.params.id))
+            .then(() => {
+                res.json()
+            })
+            .catch(err => {
+                res.status(500)
+                res.json(err)
+            })
+    })
+
+    // Delete all Events 
+    app.delete(route + "s", (req, res) => {
+        db.removeAll()
+            .then(() => {
+                res.json()
+            })
+            .catch(err => {
+                res.status(500)
+                res.json(err)
+            })
+    })
+
 }
 
 export const cronSequenceLink = (app: Express, db: AppDB['cronSequenceLink'], route: string, stringToKey: (s: string) => number) => {

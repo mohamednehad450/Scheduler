@@ -14,8 +14,10 @@ interface EventsDB<K, T> {
     emit: (obj: any) => Promise<T>
     get: (id: K,) => Promise<T | null>
     remove: (id: K) => Promise<void>
+    removeByObject: (objId: any) => Promise<void>
+    removeAll: () => Promise<void>
     listAll: () => Promise<T[]>
-    list: (where: any) => Promise<T[]>
+    listByObject: (objId: any) => Promise<T[]>
 }
 
 export type { DB, EventsDB }
