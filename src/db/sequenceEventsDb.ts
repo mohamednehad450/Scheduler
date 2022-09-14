@@ -4,8 +4,11 @@ import { EventsDB } from "./db"
 
 
 
+type SequenceEventDBType = (SequenceEvent & { sequence: { name: string } })
 
-class SequenceEventsDb implements EventsDB<SequenceEvent['id'], SequenceEvent> {
+
+
+class SequenceEventsDb implements EventsDB<SequenceEvent['id'], SequenceEventDBType> {
 
     prisma: PrismaClient
     validator: ObjectSchema
@@ -21,12 +24,16 @@ class SequenceEventsDb implements EventsDB<SequenceEvent['id'], SequenceEvent> {
         const { error, value } = this.validator.validate(e)
         if (error) throw error
         return await this.prisma.sequenceEvent.create({
-            data: value
+            data: value,
+            include: { sequence: { select: { name: true } } }
         })
     }
 
 
-    get = (id: any) => this.prisma.sequenceEvent.findUnique({ where: { id } })
+    get = (id: any) => this.prisma.sequenceEvent.findUnique({
+        where: { id },
+        include: { sequence: { select: { name: true } } }
+    })
 
 
     remove = async (id: any) => {
@@ -41,9 +48,16 @@ class SequenceEventsDb implements EventsDB<SequenceEvent['id'], SequenceEvent> {
 
 
 
-    listAll = () => this.prisma.sequenceEvent.findMany({ orderBy: { date: 'desc' } })
-    listByObject = (sequenceId: number) => this.prisma.sequenceEvent.findMany({ where: { sequenceId }, orderBy: { date: 'desc' } })
+    listAll = () => this.prisma.sequenceEvent.findMany({
+        orderBy: { date: 'desc' },
+        include: { sequence: { select: { name: true } } }
+    })
+    listByObject = (sequenceId: number) => this.prisma.sequenceEvent.findMany({
+        where: { sequenceId },
+        orderBy: { date: 'desc' },
+        include: { sequence: { select: { name: true } } }
+    })
 }
 
 export { SequenceEventsDb }
-export type { SequenceEvent as SequenceEventDBType }
+export type { SequenceEventDBType }
