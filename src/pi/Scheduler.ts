@@ -30,9 +30,9 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
 
 
         const runIfActive = (ids: CronDbType['CronSequence']) => {
-            ids.forEach(({ sequenceId }) => {
-                if (this.sequences.get(sequenceId)?.isActive()) {
-                    this.sequences.get(sequenceId)?.run()
+            ids.forEach(({ sequence: { id } }) => {
+                if (this.sequences.get(id)?.isActive()) {
+                    this.sequences.get(id)?.run()
                 }
             })
         }

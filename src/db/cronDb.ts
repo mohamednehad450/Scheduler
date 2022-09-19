@@ -6,10 +6,21 @@ import { ObjectSchema } from "joi";
 
 interface CronDbType extends Cron {
     CronSequence: {
-        sequenceId: number
+        sequence: {
+            id: number,
+            name: string,
+            active: boolean
+        }
+
     }[]
 }
-
+const include = {
+    CronSequence: {
+        select: {
+            sequence: { select: { id: true, name: true, active: true } }
+        }
+    }
+}
 class CronDb extends EventEmitter implements DB<Cron['id'], CronDbType> {
 
     validator: ObjectSchema
@@ -22,12 +33,14 @@ class CronDb extends EventEmitter implements DB<Cron['id'], CronDbType> {
         this.partialValidator = partialValidator
     }
 
+
+
     insert = async (arg: any) => {
         const { value: data, error } = this.validator.validate(arg)
 
         if (error) throw error
 
-        const newCron = await this.prisma.cron.create({ data, include: { CronSequence: { select: { sequenceId: true } } } })
+        const newCron = await this.prisma.cron.create({ data, include })
 
         this.emit('insert', newCron)
         return newCron
@@ -35,7 +48,7 @@ class CronDb extends EventEmitter implements DB<Cron['id'], CronDbType> {
 
 
     get = (id: number) => {
-        return this.prisma.cron.findUnique({ where: { id }, include: { CronSequence: { select: { sequenceId: true } } } })
+        return this.prisma.cron.findUnique({ where: { id }, include })
     }
 
 
@@ -48,7 +61,7 @@ class CronDb extends EventEmitter implements DB<Cron['id'], CronDbType> {
 
 
     list = () => {
-        return this.prisma.cron.findMany({ include: { CronSequence: { select: { sequenceId: true } } } })
+        return this.prisma.cron.findMany({ include })
     }
 
 
@@ -57,11 +70,7 @@ class CronDb extends EventEmitter implements DB<Cron['id'], CronDbType> {
 
         if (error) throw error
 
-        const newCron = await this.prisma.cron.update({
-            where: { id },
-            data,
-            include: { CronSequence: { select: { sequenceId: true } } }
-        })
+        const newCron = await this.prisma.cron.update({ where: { id }, data, include })
         this.emit('update', newCron)
         return newCron
     }
@@ -73,11 +82,7 @@ class CronDb extends EventEmitter implements DB<Cron['id'], CronDbType> {
 
         if (error) throw error
 
-        const newCron = await this.prisma.cron.update({
-            where: { id },
-            data,
-            include: { CronSequence: { select: { sequenceId: true } } }
-        })
+        const newCron = await this.prisma.cron.update({ where: { id }, data, include })
         this.emit('update', newCron)
         return newCron
     }
