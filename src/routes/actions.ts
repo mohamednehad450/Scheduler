@@ -1,44 +1,21 @@
 import { AppDB } from '../db'
-import { PinManager, Scheduler } from '../pi'
+import { Scheduler } from '../pi'
 import { Server, Socket } from 'socket.io'
 
 
 enum ACTIONS {
     RUN = "run",
     STOP = 'stop',
-    REFRESH = "refresh"
+    STATE = "state",
+    TICK = "tick"
 }
 
-type ErrorObject = {
-    action: ACTIONS,
-    message: string,
-    errName: string
-    args: any[]
-}
-type SuccessObject = {
-    action: ACTIONS,
-    message?: string,
-    args: any[]
-}
 
-const createErr = (action: ACTIONS, err: Error, ...args: any[]): ErrorObject => ({
-    action,
-    message: err.message,
-    errName: err.name,
-    args
-})
-
-const createSuccess = (action: ACTIONS, message?: string, ...args: any[]): SuccessObject => ({
-    action,
-    message,
-    args
-})
-
-const addAction = (a: ACTIONS, func: (id: number) => Promise<void>, socket: Socket) => {
-    socket.on(a, (id) => {
-        func(id)
-            .then(() => socket.emit('success', createSuccess(a, '', id)))
-            .catch(err => socket.emit('failed', createErr(a, err, id)))
+const addAction = (a: ACTIONS, func: (...args: any) => Promise<void>, socket: Socket) => {
+    socket.on(a, (actionId, ...args) => {
+        func(...args)
+            .then(() => actionId && socket.emit(actionId, true, null))
+            .catch(err => actionId && socket.emit(actionId, false, err))
     })
 }
 
@@ -59,7 +36,6 @@ export default (io: Server, db: AppDB) => {
             cb(d)
             tick = setTimeout(() => tickHandler(cb), TICK - (d.getTime() % TICK))
         }
-        tickHandler((d) => socket.emit('tick', d))
 
 
         // On channel change: update state and emit pinChange 
@@ -105,15 +81,19 @@ export default (io: Server, db: AppDB) => {
                 channelsStatus: await scheduler.channelsStatus(),
             })
         }
-        sendState()
-            .catch(err => socket.emit('failed', createErr(ACTIONS.REFRESH, err)))
+        async function onTick(on: boolean) {
+            if (on) {
+                clearTimeout(tick)
+                tickHandler((d) => socket.emit('tick', d))
+            } else clearTimeout(tick)
+        }
 
-        socket.on(ACTIONS.REFRESH, () => sendState()
-            .catch(err => socket.emit('failed', createErr(ACTIONS.REFRESH, err))))
 
 
         addAction(ACTIONS.RUN, scheduler.run, socket)
         addAction(ACTIONS.STOP, scheduler.stop, socket)
+        addAction(ACTIONS.STATE, sendState, socket)
+        addAction(ACTIONS.TICK, onTick, socket)
 
         scheduler.on('channelChange', channelChange)
         scheduler.on('stop', stop)
