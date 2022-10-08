@@ -1,13 +1,14 @@
-import { Express } from 'express'
+import { json } from 'body-parser'
+import { Express, Router } from 'express'
 import { AppDB } from '../db'
-
 import { DB, EventsDB, } from "../db/db"
 
 
-export const CRUD = <K, T>(app: Express, db: DB<K, T>, route: string, stringToKey: (s: string) => K) => {
+export const CRUD = <K, T>(db: DB<K, T>, stringToKey: (s: string) => K) => {
 
+    const router = Router()
     // List all objects
-    app.get(route + 's', (req, res) => {
+    router.get('/', (req, res) => {
         db.list()
             .then(ms => {
                 res.json(ms)
@@ -19,10 +20,15 @@ export const CRUD = <K, T>(app: Express, db: DB<K, T>, route: string, stringToKe
     })
 
     // Get object
-    app.get(route + '/:id', (req, res) => {
+    router.get('/:id', (req, res) => {
         db.get(stringToKey(req.params.id))
             .then(m => {
-                res.json(m)
+                if (m) {
+                    res.json(m)
+                    return
+                }
+                res.status(404)
+                res.json({ error: "NOT FOUND" })
             })
             .catch(err => {
                 res.status(500)
@@ -31,19 +37,25 @@ export const CRUD = <K, T>(app: Express, db: DB<K, T>, route: string, stringToKe
     })
 
     // Create new object
-    app.post(route, (req, res) => {
+    router.post('/', (req, res) => {
         db.insert(req.body)
             .then(m => {
                 res.json(m)
             })
             .catch(err => {
+                // TODO: Validation error
+                if (err.isJoi) {
+                    res.status(400)
+                    res.json({ ...err, error: "VALIDATION ERROR" })
+                    return
+                }
                 res.status(500)
                 res.json(err)
             })
     })
 
     // Delete an object
-    app.delete(route + "/:id", (req, res) => {
+    router.delete("/:id", (req, res) => {
         db.remove(stringToKey(req.params.id))
             .then(() => {
                 res.json()
@@ -55,36 +67,51 @@ export const CRUD = <K, T>(app: Express, db: DB<K, T>, route: string, stringToKe
     })
 
     // Updates an object completely
-    app.put(route + '/:id', (req, res) => {
+    router.put('/:id', (req, res) => {
         db.set(stringToKey(req.params.id), req.body)
             .then(m => {
                 res.json(m)
             })
             .catch(err => {
+                // TODO: Validation error
+                if (err.isJoi) {
+                    res.status(400)
+                    res.json({ ...err, error: "VALIDATION ERROR" })
+                    return
+                }
                 res.status(500)
                 res.json(err)
             })
     })
 
     // Updates an object
-    app.patch(route + '/:id', (req, res) => {
+    router.patch('/:id', (req, res) => {
         db.update(stringToKey(req.params.id), req.body)
             .then(m => {
                 res.json(m)
             })
             .catch(err => {
+                // TODO: Validation error
+                if (err.isJoi) {
+                    res.status(400)
+                    res.json({ ...err, error: "VALIDATION ERROR" })
+                    return
+                }
                 res.status(500)
                 res.json(err)
             })
     })
+
+    return router
 }
 
 
 
-export const Events = <K, T>(app: Express, db: EventsDB<K, T>, route: string, stringToKey: (s: string) => K) => {
+export const Events = <K, T>(db: EventsDB<K, T>, stringToKey: (s: string) => K) => {
 
+    const router = Router()
     // List all Events 
-    app.get(route + 's', (req, res) => {
+    router.get("/", (req, res) => {
         db.listAll()
             .then(ms => {
                 res.json(ms)
@@ -96,7 +123,7 @@ export const Events = <K, T>(app: Express, db: EventsDB<K, T>, route: string, st
     })
 
     // List Events by parameter
-    app.get(route + 's/:id', (req, res) => {
+    router.get('/:id', (req, res) => {
         db.listByObject(stringToKey(req.params.id))
             .then(m => {
                 res.json(m)
@@ -107,32 +134,8 @@ export const Events = <K, T>(app: Express, db: EventsDB<K, T>, route: string, st
             })
     })
 
-    // Get Event
-    app.get(route + '/:id', (req, res) => {
-        db.get(stringToKey(req.params.id))
-            .then(m => {
-                res.json(m)
-            })
-            .catch(err => {
-                res.status(500)
-                res.json(err)
-            })
-    })
-
-    // Delete an Event
-    app.delete(route + "/:id", (req, res) => {
-        db.remove(stringToKey(req.params.id))
-            .then(() => {
-                res.json()
-            })
-            .catch(err => {
-                res.status(500)
-                res.json(err)
-            })
-    })
-
     // Delete Events by parameter
-    app.delete(route + "s/:id", (req, res) => {
+    router.delete("/:id", (req, res) => {
         db.removeByObject(stringToKey(req.params.id))
             .then(() => {
                 res.json()
@@ -144,7 +147,7 @@ export const Events = <K, T>(app: Express, db: EventsDB<K, T>, route: string, st
     })
 
     // Delete all Events 
-    app.delete(route + "s", (req, res) => {
+    router.delete("/", (req, res) => {
         db.removeAll()
             .then(() => {
                 res.json()
@@ -155,12 +158,15 @@ export const Events = <K, T>(app: Express, db: EventsDB<K, T>, route: string, st
             })
     })
 
+    return router
+
 }
 
-export const cronSequenceLink = (app: Express, db: AppDB['cronSequenceLink'], route: string, stringToKey: (s: string) => number) => {
+export const cronSequenceLink = (db: AppDB['cronSequenceLink'], stringToKey: (s: string) => number) => {
 
-    // Create new object
-    app.post(route + '/sequence/:id', (req, res) => {
+    const router = Router()
+    // Link a Sequence to a list of crons
+    router.post('/sequence/:id', (req, res) => {
         db.linkSequence(stringToKey(req.params.id), req.body)
             .then(() => {
                 res.send()
@@ -170,8 +176,8 @@ export const cronSequenceLink = (app: Express, db: AppDB['cronSequenceLink'], ro
                 res.json(err)
             })
     })
-    // Create new object
-    app.post(route + '/cron/:id', (req, res) => {
+    // Link a cron to a list of Sequences
+    router.post('/cron/:id', (req, res) => {
         db.linkCron(stringToKey(req.params.id), req.body)
             .then(() => {
                 res.send()
@@ -181,5 +187,8 @@ export const cronSequenceLink = (app: Express, db: AppDB['cronSequenceLink'], ro
                 res.json(err)
             })
     })
+
+
+    return router
 }
 

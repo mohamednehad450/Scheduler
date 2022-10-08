@@ -6,13 +6,11 @@ import { cronSequenceLink, CRUD, Events } from './utils'
 
 const routes = {
     SEQUENCE: '/sequence',
-    // /sequences and /sequence/:id are created with CRUD
-    SEQUENCE_EVENTS: '/sequence/event',
-    // /sequence/events and /sequence/events/:id are created with Events
     PIN: '/pin',
-    // /pins and /pin/:id are created with CRUD
     CRON: '/cron',
-    // /crons and /cron/:id are created with CRUD,
+    EVENTS: {
+        SEQUENCE: "/events/sequences"
+    },
     LINK: '/link'
     // /link/cron/:id and /link/sequence/:id are created with cronSequenceLink
 
@@ -20,10 +18,10 @@ const routes = {
 const stringToNum = (s: string) => Number(s)
 
 export default (app: Express, io: Server, db: AppDB) => {
-    Events(app, db.sequenceEventsDb, routes.SEQUENCE_EVENTS, stringToNum)
-    CRUD(app, db.sequencesDb, routes.SEQUENCE, stringToNum)
-    CRUD(app, db.pinsDb, routes.PIN, stringToNum)
-    CRUD(app, db.cronDb, routes.CRON, stringToNum)
-    cronSequenceLink(app, db.cronSequenceLink, routes.LINK, stringToNum)
+    app.use(routes.EVENTS.SEQUENCE, Events(db.sequenceEventsDb, stringToNum))
+    app.use(routes.SEQUENCE, CRUD(db.sequencesDb, stringToNum))
+    app.use(routes.PIN, CRUD(db.pinsDb, stringToNum))
+    app.use(routes.CRON, CRUD(db.cronDb, stringToNum))
+    app.use(routes.LINK, cronSequenceLink(db.cronSequenceLink, stringToNum))
     actions(io, db)
 }
