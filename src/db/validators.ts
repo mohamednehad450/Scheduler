@@ -51,16 +51,14 @@ const CronPartialSchema = Joi.object({
 const SequenceSchema = Joi.object({
     name: Joi.string().required(),
     active: Joi.boolean(),
-    orders: Joi.object({ create: OrderListSchema.required() }).required(),
+    orders: OrderListSchema.required(),
     lastRun: Joi.date(),
 })
 
 const SequencePartialSchema = Joi.object({
     name: Joi.string(),
     active: Joi.boolean(),
-    orders: Joi.object({
-        create: OrderListSchema.required(),
-    }),
+    orders: OrderListSchema,
     lastRun: Joi.date(),
 })
 

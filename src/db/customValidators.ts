@@ -97,7 +97,9 @@ const noOverlappingOrders: Joi.CustomValidator = (v: Order[], helper) => {
         return helper.error("noOverlappingOrders", { value: errors })
     }
 
-    return v
+    return {
+        create: v
+    }
 }
 
 
