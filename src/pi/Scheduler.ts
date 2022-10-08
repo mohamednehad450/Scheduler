@@ -54,7 +54,12 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
 
         // Old sequence has been removed
         db.sequencesDb.addListener('remove', (seqId: SequenceDBType['id']) => {
+            this.sequences.get(seqId)?.stop()
             this.sequences.delete(seqId)
+        })
+        // Old sequence has been removed
+        db.sequencesDb.addListener('update', (newSeq: SequenceDBType) => {
+            this.sequences.get(newSeq.id)?.update(newSeq)
         })
 
         const eventHandler = (event: string) => (id: SequenceDBType['id']) => {

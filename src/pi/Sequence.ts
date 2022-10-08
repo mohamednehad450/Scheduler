@@ -16,31 +16,6 @@ class Sequence {
         this.pm = pm
         this.db = appDb
         this.active = seq.active
-
-
-        const update = (newData: SequenceDBType) => {
-            if (newData.id !== this.id) return
-            if (newData.active !== this.active) {
-                this.db.sequenceEventsDb.emit({
-                    sequenceId: this.id,
-                    date: new Date(),
-                    eventType: newData.active ? 'activate' : 'deactivate'
-                })
-            }
-            this.active = newData.active
-        }
-
-
-        const remove = (id: number) => {
-            if (id !== this.id) return
-            this.stop()
-            this.db.sequencesDb.removeListener('update', update)
-            this.db.sequencesDb.removeListener('remove', remove)
-        }
-
-
-        this.db.sequencesDb.addListener('update', update)
-        this.db.sequencesDb.addListener('remove', remove)
     }
 
 
@@ -69,6 +44,18 @@ class Sequence {
     isActive = (): boolean => {
         return this.active
     }
+
+    update = (newData: SequenceDBType) => {
+        if (newData.active !== this.active) {
+            this.db.sequenceEventsDb.emit({
+                sequenceId: this.id,
+                date: new Date(),
+                eventType: newData.active ? 'activate' : 'deactivate'
+            })
+        }
+        this.active = newData.active
+    }
+
 }
 
 
