@@ -1,9 +1,15 @@
 import { PrismaClient } from "@prisma/client";
-import { CronDbType } from "./cronDb";
-import { SequenceDBType } from "./sequenceDb";
+import { CronDbType, cronInclude } from "./cronDb";
+import { SequenceDBType, sequenceInclude } from "./sequenceDb";
 
 
-class CronSequenceLink {
+interface CronSequenceLinkInterface {
+    linkSequence: (sequenceId: SequenceDBType['id'], cronsIds: CronDbType['id'][]) => Promise<SequenceDBType>
+    linkCron: (cronId: CronDbType['id'], sequencesIds: SequenceDBType['id'][]) => Promise<CronDbType>
+
+}
+
+class CronSequenceLink implements CronSequenceLinkInterface {
 
     prisma: PrismaClient
 
@@ -11,26 +17,36 @@ class CronSequenceLink {
         this.prisma = prisma
     }
 
-    linkSequence = (sequenceId: SequenceDBType['id'], cronsIds: CronDbType['id'][]) => {
+    linkSequence = async (sequenceId: SequenceDBType['id'], cronsIds: CronDbType['id'][]) => {
+
         const oldLinks = this.prisma.cronSequence.deleteMany({ where: { sequenceId } })
-        const newLinks = cronsIds.map(cronId => this.prisma.cronSequence.create({
+        const newLinks = this.prisma.sequence.update({
+            where: { id: sequenceId },
             data: {
-                sequenceId,
-                cronId
-            }
-        }))
-        return this.prisma.$transaction([oldLinks, ...newLinks])
+                CronSequence: { create: cronsIds.map(cronId => ({ cronId })) }
+            },
+            include: sequenceInclude
+        })
+
+        const results = await this.prisma.$transaction([oldLinks, newLinks])
+
+        return results[1]
     }
 
-    linkCron = (cronId: CronDbType['id'], sequencesIds: SequenceDBType['id'][]) => {
+    linkCron = async (cronId: CronDbType['id'], sequencesIds: SequenceDBType['id'][]) => {
+
         const oldLinks = this.prisma.cronSequence.deleteMany({ where: { cronId } })
-        const newLinks = sequencesIds.map(sequenceId => this.prisma.cronSequence.create({
+        const newLinks = this.prisma.cron.update({
+            where: { id: cronId },
             data: {
-                sequenceId,
-                cronId
-            }
-        }))
-        return this.prisma.$transaction([oldLinks, ...newLinks])
+                CronSequence: { create: sequencesIds.map(sequenceId => ({ sequenceId })) }
+            },
+            include: cronInclude
+        })
+
+        const results = await this.prisma.$transaction([oldLinks, newLinks])
+
+        return results[1]
     }
 }
 

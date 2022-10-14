@@ -88,5 +88,5 @@ class CronDb extends EventEmitter implements DB<Cron['id'], CronDbType> {
     }
 }
 
-export { CronDb }
+export { CronDb, include as cronInclude }
 export type { CronDbType }

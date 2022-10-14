@@ -168,8 +168,8 @@ export const cronSequenceLink = (db: AppDB['cronSequenceLink'], stringToKey: (s:
     // Link a Sequence to a list of crons
     router.post('/sequence/:id', (req, res) => {
         db.linkSequence(stringToKey(req.params.id), req.body)
-            .then(() => {
-                res.send()
+            .then((sequence) => {
+                res.json(sequence)
             })
             .catch(err => {
                 res.status(500)
@@ -179,8 +179,8 @@ export const cronSequenceLink = (db: AppDB['cronSequenceLink'], stringToKey: (s:
     // Link a cron to a list of Sequences
     router.post('/cron/:id', (req, res) => {
         db.linkCron(stringToKey(req.params.id), req.body)
-            .then(() => {
-                res.send()
+            .then((cron) => {
+                res.json(cron)
             })
             .catch(err => {
                 res.status(500)
