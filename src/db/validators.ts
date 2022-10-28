@@ -72,6 +72,18 @@ const SequenceEventSchema = Joi.object({
     date: Joi.date().required(),
 })
 
+const UserSchema = Joi.object({
+    username: Joi.string()
+        .alphanum()
+        .min(1)
+        .max(128)
+        .required()
+    ,
+    password: Joi.string()
+        .pattern(/^(?=[^A-Z]*[A-Z])(?=[^a-z]*[a-z])(?=[^0-9]*[0-9]).{6,}$/)
+        .message("weak password")
+        .required()
+})
 
 export {
     SequenceSchema,
@@ -82,5 +94,6 @@ export {
     SequenceEventSchema,
     CronSchema,
     CronPartialSchema,
+    UserSchema,
 }
 

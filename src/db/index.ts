@@ -4,6 +4,7 @@ import CronSequenceLink from "./cronSequenceLink"
 import { PinDb, PinDbType } from "./pinsDb"
 import { SequenceDb, SequenceDBType } from "./sequenceDb"
 import { SequenceEventsDb, SequenceEventDBType } from "./sequenceEventsDb"
+import AdminDb from "./adminDb"
 import { PinSchema, PinPartialSchema, SequencePartialSchema, SequenceSchema, SequenceEventSchema, CronSchema, CronPartialSchema } from "./validators"
 
 type AppDB = {
@@ -12,6 +13,7 @@ type AppDB = {
     pinsDb: PinDb,
     cronDb: CronDb,
     cronSequenceLink: CronSequenceLink
+    adminDb: AdminDb
 }
 
 const prisma = new PrismaClient()
@@ -22,6 +24,7 @@ const sequenceEventsDb = new SequenceEventsDb(prisma, SequenceEventSchema)
 const pinsDb = new PinDb(prisma, PinSchema, PinPartialSchema)
 const cronDb = new CronDb(prisma, CronSchema, CronPartialSchema)
 const cronSequenceLink = new CronSequenceLink(prisma)
+const adminDb = new AdminDb(prisma)
 
 
 const appDb: AppDB = {
@@ -30,6 +33,7 @@ const appDb: AppDB = {
     pinsDb,
     cronDb,
     cronSequenceLink,
+    adminDb
 }
 
 export { appDb, prisma }

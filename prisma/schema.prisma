@@ -10,6 +10,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model Admin {
+  id       String @id @unique @default("admin")
+  username String @unique
+  password String
+}
+
 model Pin {
   channel Int     @id @unique
   label   String
