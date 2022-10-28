@@ -4,6 +4,9 @@ import { Server } from 'socket.io'
 import { createServer, } from 'http'
 import routes from './routes'
 import { appDb } from './db';
+import { config } from 'dotenv'
+
+config()
 
 
 const PORT = 8000;

@@ -1,6 +1,7 @@
 import { AppDB } from '../db'
 import { Scheduler } from '../pi'
 import { Server, Socket } from 'socket.io'
+import { verify } from 'jsonwebtoken'
 
 
 enum ACTIONS {
@@ -23,6 +24,15 @@ export default (io: Server, db: AppDB) => {
 
     const scheduler = new Scheduler(db)
 
+    io.use((socket, next) => {
+        try {
+            const token = socket.handshake.auth.token
+            verify(token, process.env.TOKEN_KEY || '')
+            next()
+        } catch (error) {
+            next(new Error('invalid token'))
+        }
+    })
 
     io.on('connection', (socket) => {
         console.log('Socket Connected.')
