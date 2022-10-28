@@ -69,6 +69,9 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
                 eventType: event,
                 date: new Date()
             })
+                .catch(() => {
+                    // TODO
+                })
         }
         // PinManager events pass through
         this.pinManager.on('channelChange', (...args) => this.emit('channelChange', ...args))
