@@ -7,7 +7,6 @@ import EventEmitter from 'events'
 import { cronTrigger } from './utils'
 
 interface SchedulerInterface<K> {
-    isActive: (id: K,) => boolean
     run: (id: K) => Promise<void>
     running: () => K[]
     stop: (id: K) => Promise<void>
@@ -80,34 +79,8 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
         this.pinManager.on('finish', eventHandler('finish'))
     }
 
-    isActive = (id: SequenceDBType['id']) => {
-        const seq = this.sequences.get(id)
-
-        if (!seq) {
-            throw new Error('Missing sequence or invalid sequence ID')
-        }
-        return seq.isActive()
-    }
-
-
-    run = async (id: SequenceDBType['id']) => {
-        const seq = this.sequences.get(id)
-
-        if (!seq) {
-            throw new Error('Missing sequence or invalid sequence ID')
-        }
-        seq.run()
-    }
-
-    stop = async (id: SequenceDBType['id']) => {
-        const seq = this.sequences.get(id)
-
-        if (!seq) {
-            throw new Error('Missing sequence or invalid sequence ID')
-        }
-        seq.stop()
-    }
-
+    run = async (id: SequenceDBType['id']) => this.sequences.get(id)?.run()
+    stop = async (id: SequenceDBType['id']) => this.sequences.get(id)?.stop()
 
     getReservedPins: () => { pin: PinDbType; sequenceId: number }[] = () => this.pinManager.getReservedPins()
     channelsStatus: () => Promise<{ [key: number]: boolean }> = () => this.pinManager.channelsStatus();
