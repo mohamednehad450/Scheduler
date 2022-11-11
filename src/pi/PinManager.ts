@@ -5,7 +5,6 @@ import { PinDbType, SequenceDBType } from "../db";
 
 
 interface GpioManager {
-    isRunning: (id: SequenceDBType['id'],) => boolean
     run: (data: SequenceDBType) => void
     running: () => SequenceDBType['id'][]
     stop: (id: SequenceDBType['id']) => void
@@ -103,9 +102,6 @@ class PinManager extends EventEmitter implements GpioManager {
     }
 
 
-    isRunning = (id: SequenceDBType['id']) => {
-        return this.orders.has(id)
-    };
 
 
     running = () => {

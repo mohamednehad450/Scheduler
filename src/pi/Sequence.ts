@@ -36,9 +36,6 @@ class Sequence {
     }
 
 
-    isRunning = () => {
-        return this.pm.isRunning(this.id)
-    }
 
 
     isActive = (): boolean => {
