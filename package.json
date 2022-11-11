@@ -4,9 +4,9 @@
   "description": "",
   "main": "build/index.js",
   "scripts": {
-    "dev": "yarn nodemon -r dotenv/config src/index.ts --ignore sequences/ --ignore objects/",
+    "dev": "yarn nodemon -r dotenv/config src/index.ts",
     "build": "yarn tsc",
-    "start": "node built/index.js",
+    "start": "yarn prisma db push && node built/index.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "author": "",
