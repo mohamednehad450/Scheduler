@@ -5,7 +5,39 @@ type GpioConfig = {
     validPins: number[],
     boardMode: typeof gpio.promise.MODE_BCM,
 }
-const config: GpioConfig = JSON.parse(readFileSync('config.json', 'utf8'))
+
+const config: GpioConfig = {
+    validPins: [
+        3,
+        5,
+        7,
+        8,
+        10,
+        11,
+        12,
+        13,
+        15,
+        16,
+        18,
+        19,
+        21,
+        22,
+        23,
+        24,
+        26,
+        29,
+        31,
+        32,
+        33,
+        35,
+        36,
+        37,
+        38,
+        40
+    ],
+    boardMode: gpio.MODE_RPI
+}
+
 
 function logArgs(func: string, ...args: any) { console.log({ time: new Date().toLocaleTimeString(), func, args: JSON.stringify(args) }) }
 
