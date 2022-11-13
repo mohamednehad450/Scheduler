@@ -3,11 +3,10 @@ import bodyParser from 'body-parser'
 import { Server } from 'socket.io'
 import { createServer, } from 'http'
 import routes from './routes'
-import { appDb } from './db';
+import { initDb } from './db';
 import { config } from 'dotenv'
 
 config()
-
 
 const PORT = 8000;
 
@@ -27,6 +26,12 @@ app.use(function (req, res, next) {
     next();
 });
 
-routes(app, io, appDb)
-
-httpServer.listen(PORT)
+initDb()
+    .then(appDb => {
+        routes(app, io, appDb)
+        httpServer.listen(PORT)
+    })
+    .catch(err => {
+        console.error('fail to start')
+        console.error(err)
+    })

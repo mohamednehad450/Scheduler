@@ -16,25 +16,29 @@ type AppDB = {
     adminDb: AdminDb
 }
 
-const prisma = new PrismaClient()
-prisma.$connect()
 
-const sequencesDb = new SequenceDb(prisma, SequenceSchema, SequencePartialSchema)
-const sequenceEventsDb = new SequenceEventsDb(prisma, SequenceEventSchema)
-const pinsDb = new PinDb(prisma, PinSchema, PinPartialSchema)
-const cronDb = new CronDb(prisma, CronSchema, CronPartialSchema)
-const cronSequenceLink = new CronSequenceLink(prisma)
-const adminDb = new AdminDb(prisma)
+const initDb = async (): Promise<AppDB> => {
+    const prisma = new PrismaClient()
+    await prisma.$connect()
 
+    const sequencesDb = new SequenceDb(prisma, SequenceSchema, SequencePartialSchema)
+    const sequenceEventsDb = new SequenceEventsDb(prisma, SequenceEventSchema)
+    const pinsDb = new PinDb(prisma, PinSchema, PinPartialSchema)
+    const cronDb = new CronDb(prisma, CronSchema, CronPartialSchema)
+    const cronSequenceLink = new CronSequenceLink(prisma)
+    const adminDb = new AdminDb(prisma)
 
-const appDb: AppDB = {
-    sequencesDb,
-    sequenceEventsDb,
-    pinsDb,
-    cronDb,
-    cronSequenceLink,
-    adminDb
+    return {
+        sequencesDb,
+        sequenceEventsDb,
+        pinsDb,
+        cronDb,
+        cronSequenceLink,
+        adminDb
+    }
 }
 
-export { appDb, prisma }
+
+
+export { initDb }
 export type { AppDB, SequenceDBType, PinDbType, CronDbType, SequenceEventDBType }
