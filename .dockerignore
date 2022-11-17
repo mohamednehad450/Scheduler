@@ -1,0 +1,6 @@
+built
+node_modules
+.env
+
+# Prisma database
+prisma/db.db
