@@ -1,5 +1,4 @@
 import gpio from 'rpi-gpio'
-import { readFileSync } from 'fs'
 
 type GpioConfig = {
     validPins: number[],
@@ -67,6 +66,8 @@ if (process.env.NODE_ENV === 'development') {
         gpio.emit('change', c, bool)
     }
 }
+
+process.on('SIGTERM', async () => await gpio.promise.destroy())
 
 export default gpio
 export { config }
