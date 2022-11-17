@@ -7,6 +7,7 @@ import { verify } from 'jsonwebtoken'
 enum ACTIONS {
     RUN = "run",
     STOP = 'stop',
+    RESET = "reset",
     STATE = "state",
     TICK = "tick"
 }
@@ -102,6 +103,7 @@ export default (io: Server, db: AppDB) => {
 
         addAction(ACTIONS.RUN, scheduler.run, socket)
         addAction(ACTIONS.STOP, scheduler.stop, socket)
+        addAction(ACTIONS.RESET, scheduler.resetPinManager, socket)
         addAction(ACTIONS.STATE, sendState, socket)
         addAction(ACTIONS.TICK, onTick, socket)
 
