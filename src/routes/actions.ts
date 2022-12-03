@@ -21,9 +21,11 @@ const addAction = (a: ACTIONS, func: (...args: any) => Promise<void>, socket: So
     })
 }
 
-export default (io: Server, db: AppDB) => {
+export default async (io: Server, db: AppDB) => {
 
     const scheduler = new Scheduler(db)
+
+    await scheduler.start()
 
     io.use((socket, next) => {
         try {

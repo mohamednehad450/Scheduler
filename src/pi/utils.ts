@@ -1,66 +1,110 @@
 import { CronJob } from "cron";
-import { AppDB, CronDbType } from "../db";
+import { AppDB, CronDbType, SequenceDBType } from "../db";
+import Sequence from "./Sequence";
 
 
+class CronManager {
 
-const cronTrigger = (db: AppDB, runSequences: (ids: CronDbType['CronSequence']) => void) => {
+    jobs: {
+        [key: CronDbType['id']]:
+        { cron: string, job: CronJob }
+    } = {}
+    callback: (id: CronDbType['id']) => void
 
-    const cronJobs = new Map<CronDbType['id'], { cron: string, job: CronJob }>()
 
-    const runCron = (id: CronDbType['id']) => () => {
-        db.cronDb.get(id)
-            .then(cron => cron && runSequences(cron.CronSequence))
-            .catch(err => {
-                // TODO
-            })
+    constructor(crons: { id: CronDbType['id'], cron: CronDbType['cron'] }[], callback: (id: CronDbType['id']) => void) {
+        this.callback = callback
+        this.jobs = crons.reduce((acc, { id, cron }) => {
+            const job = new CronJob(cron, () => this.callback(id))
+            return {
+                ...acc,
+                [id]: {
+                    cron,
+                    job
+                },
+            }
+        }, {})
     }
 
-    db.cronDb.list()
-        .then(crons => crons.forEach(({ id, cron }) => {
-            const cronJob = {
-                cron,
-                job: new CronJob(cron, runCron(id))
-            }
-            cronJob.job.start()
-            cronJobs.set(id, cronJob)
-        }))
+
+    startAll = () => {
+        [...Object.keys(this.jobs)].forEach((id: any) => this.jobs[id].job.start())
+    }
+
+
+    start = (id: CronDbType['id']) => {
+        if (!this.jobs[id]) return
+        this.jobs[id].job.start()
+    }
+
+
+    stopAll = () => {
+        [...Object.keys(this.jobs)].map((id: any) => this.jobs[id].job.stop())
+    }
+
+
+    stop = (id: CronDbType['id']) => {
+        if (!this.jobs[id]) return
+        this.jobs[id].job.stop()
+    }
+
+
+    insert = (id: CronDbType['id'], cron: CronDbType['cron']) => {
+        if (this.jobs[id]) return
+        const job = {
+            cron,
+            job: new CronJob(cron, () => this.callback(id))
+        }
+        this.jobs[id] = job
+    }
+
+
+    remove = (id: CronDbType['id']) => {
+        this.stop(id)
+        delete this.jobs[id]
+    }
+
+
+    update = (id: CronDbType['id'], cron: CronDbType['cron']) => {
+        if (!this.jobs[id]) return
+        const job = this.jobs[id]
+
+        if (job.cron === cron) return
+
+        const wasRunning = job.job.running
+        job.job.stop()
+
+        job.cron = cron
+        job.job = new CronJob(cron, () => this.callback(id))
+
+        this.jobs[id] = job
+        wasRunning && job.job.start()
+    }
+}
+
+
+const triggerCron = (cronDb: AppDB['cronDb'], id: CronDbType['id'], sequences: { [key: SequenceDBType['id']]: Sequence }) => {
+    cronDb.get(id)
+        .then(cron => cron && runIfActive(cron.CronSequence, sequences))
         .catch(err => {
+            console.error(`Failed to trigger Cronjob (id:${id}), database error`, err)
             // TODO
         })
+}
 
-    db.cronDb.addListener('insert', ({ id, cron }: CronDbType) => {
-        const cronJob = {
-            cron,
-            job: new CronJob(cron, runCron(id))
-        }
-        cronJob.job.start()
-        cronJobs.set(id, cronJob)
-    })
 
-    db.cronDb.addListener('remove', (id: CronDbType['id']) => {
-        cronJobs.get(id)?.job.stop()
-        cronJobs.delete(id)
-    })
 
-    db.cronDb.addListener('update', ({ id, cron }: CronDbType) => {
-        const oldCronJob = cronJobs.get(id)
-        if (!oldCronJob) {
-            // Inconsistent state : TODO
-            return
-        }
-        if (oldCronJob.cron !== cron) {
-            oldCronJob.job.stop()
-            const cronJob = {
-                cron,
-                job: new CronJob(cron, runCron(id))
-            }
-            cronJob.job.start()
-            cronJobs.set(id, cronJob)
+const runIfActive = (ids: CronDbType['CronSequence'], sequences: { [key: SequenceDBType['id']]: Sequence }) => {
+    ids.forEach(({ sequence: { id } }) => {
+        if (sequences[id]?.isActive()) {
+            sequences[id]?.run()
         }
     })
 }
 
 
 export {
-    cronTrigger
+    CronManager,
+    triggerCron,
+    runIfActive,
 }

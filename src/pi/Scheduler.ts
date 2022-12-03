@@ -4,9 +4,10 @@ import PinManager from './PinManager'
 import Sequence from './Sequence'
 import { PinDbType, SequenceDBType, CronDbType } from '../db'
 import EventEmitter from 'events'
-import { cronTrigger } from './utils'
+import { CronManager, triggerCron } from './utils'
 
 interface SchedulerInterface<K> {
+    start: () => Promise<void>
     run: (id: K) => Promise<void>
     running: () => K[]
     stop: (id: K) => Promise<void>
@@ -18,70 +19,128 @@ interface SchedulerInterface<K> {
 class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBType['id']> {
 
     pinManager: PinManager
-    sequences: Map<SequenceDBType['id'], Sequence>
+    sequences: { [key: SequenceDBType['id']]: Sequence }
     db: AppDB
+    cleanup?: () => void
 
 
     constructor(db: AppDB) {
         super()
         this.db = db
         this.pinManager = new PinManager(db.pinsDb)
-        this.sequences = new Map()
+        this.sequences = {}
+    }
 
 
-        const runIfActive = (ids: CronDbType['CronSequence']) => {
-            ids.forEach(({ sequence: { id } }) => {
-                if (this.sequences.get(id)?.isActive()) {
-                    this.sequences.get(id)?.run()
-                }
-            })
+    start = async () => {
+
+        const sequences = await this.db.sequencesDb.list()
+        const cronTriggers = await this.db.cronDb.list()
+
+
+
+        sequences.forEach(seq => {
+            this.sequences[seq.id] = new Sequence(seq, this.pinManager, this.db)
+        })
+
+        const cronManager = new CronManager(
+            cronTriggers.map(({ id, cron }) => ({ id, cron })),
+            (id) => triggerCron(this.db.cronDb, id, this.sequences)
+        )
+
+
+        const insertCron = ({ id, cron }: CronDbType) => {
+            cronManager.insert(id, cron)
+            cronManager.start(id)
+        }
+        const updateCron = ({ id, cron }: CronDbType) => {
+            cronManager.update(id, cron)
+        }
+        const removeCron = (id: CronDbType['id']) => {
+            cronManager.remove(id)
         }
 
-        db.sequencesDb.list()
-            .then(seqData => {
-                seqData.forEach(d => this.sequences.set(d.id, new Sequence(d, this.pinManager, this.db)))
-            })
-            .then(() => cronTrigger(db, runIfActive))
-            .catch(err => {
-                // TODO
-            })
+
+        const insertSequence = (seq: SequenceDBType) => {
+            this.sequences[seq.id] = new Sequence(seq, this.pinManager, this.db)
+        }
+        const updateSequence = (seq: SequenceDBType) => {
+            this.sequences[seq.id]?.update(seq)
+        }
+        const removeSequence = (id: SequenceDBType['id']) => {
+            this.sequences[id]?.stop()
+            delete this.sequences[id]
+        }
 
 
-        // New sequence added
-        db.sequencesDb.addListener('insert', (newSeq: SequenceDBType) => {
-            this.sequences.set(newSeq.id, new Sequence(newSeq, this.pinManager, this.db))
-        })
+        // SequenceDB life cycle
+        this.db.sequencesDb.addListener('insert', insertSequence)
+        this.db.sequencesDb.addListener('update', updateSequence)
+        this.db.sequencesDb.addListener('remove', removeSequence)
 
-        // Old sequence has been removed
-        db.sequencesDb.addListener('remove', (seqId: SequenceDBType['id']) => {
-            this.sequences.get(seqId)?.stop()
-            this.sequences.delete(seqId)
-        })
-        // Old sequence has been removed
-        db.sequencesDb.addListener('update', (newSeq: SequenceDBType) => {
-            this.sequences.get(newSeq.id)?.update(newSeq)
-        })
+        // CronDB life cycle
+        this.db.cronDb.addListener('update', updateCron)
+        this.db.cronDb.addListener('insert', insertCron)
+        this.db.cronDb.addListener('remove', removeCron)
 
-        const eventHandler = (event: string) => (id: SequenceDBType['id']) => {
-            this.emit(event, id)
+
+        const eventHandler = (event: 'run' | 'stop' | 'finish' | 'activate' | 'deactivate') => (id: SequenceDBType['id']) => {
             this.db.sequenceEventsDb.emit({
                 sequenceId: id,
                 eventType: event,
                 date: new Date()
             })
-                .catch(() => {
+                .then((e) => {
+                    this.emit(e.eventType, e.id, e.date)
+                })
+                .catch(err => {
+                    console.error(`Failed to emit SequenceEvent (id:${id}, event:${event}), database error`, err)
                     // TODO
                 })
         }
+
+        const channelChange = (...args: any) => this.emit('channelChange', ...args)
+        const stop = eventHandler('stop')
+        const run = eventHandler('run')
+        const finish = eventHandler('finish')
+
+
         // PinManager events pass through
-        this.pinManager.on('channelChange', (...args) => this.emit('channelChange', ...args))
-        this.pinManager.on('stop', eventHandler('stop'))
-        this.pinManager.on('run', eventHandler('run'))
-        this.pinManager.on('finish', eventHandler('finish'))
+        this.pinManager.addListener('channelChange', channelChange)
+        this.pinManager.addListener('stop', stop)
+        this.pinManager.addListener('run', run)
+        this.pinManager.addListener('finish', finish)
+
+        // Start All Cron jobs
+        cronManager.startAll()
+
+        this.cleanup = () => {
+            // Clean SequenceDB life cycle
+            this.db.sequencesDb.removeListener('insert', insertSequence)
+            this.db.sequencesDb.removeListener('update', updateSequence)
+            this.db.sequencesDb.removeListener('remove', removeSequence)
+
+            // Clean CronDB life cycle
+            this.db.cronDb.removeListener('update', updateCron)
+            this.db.cronDb.removeListener('insert', insertCron)
+            this.db.cronDb.removeListener('remove', removeCron)
+
+            // Clean PinManager events pass through
+            this.pinManager.removeListener('channelChange', channelChange)
+            this.pinManager.removeListener('stop', stop)
+            this.pinManager.removeListener('run', run)
+            this.pinManager.removeListener('finish', finish)
+
+            // Stop all Cron jobs
+            cronManager.stopAll()
+        }
     }
 
-    run = async (id: SequenceDBType['id']) => this.sequences.get(id)?.run()
-    stop = async (id: SequenceDBType['id']) => this.sequences.get(id)?.stop()
+
+
+
+    run = async (id: SequenceDBType['id']) => this.sequences[id]?.run()
+    stop = async (id: SequenceDBType['id']) => this.sequences[id]?.stop()
     resetPinManager = async () => await this.pinManager.rest()
     getReservedPins: () => { pin: PinDbType; sequenceId: number }[] = () => this.pinManager.getReservedPins()
     channelsStatus: () => Promise<{ [key: number]: boolean }> = () => this.pinManager.channelsStatus();
