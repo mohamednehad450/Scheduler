@@ -1,10 +1,11 @@
 
 import { AppDB, } from '../db'
 import PinManager from './PinManager'
+import CronManager from './CronManager'
 import Sequence from './Sequence'
 import { PinDbType, SequenceDBType, CronDbType } from '../db'
 import EventEmitter from 'events'
-import { CronManager, triggerCron } from './utils'
+import { triggerCron } from './utils'
 
 interface SchedulerInterface<K> {
     start: () => Promise<void>
