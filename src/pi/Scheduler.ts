@@ -27,7 +27,7 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
     constructor(db: AppDB) {
         super()
         this.db = db
-        this.pinManager = new PinManager(db.pinsDb)
+        this.pinManager = new PinManager()
         this.sequences = {}
     }
 
@@ -36,12 +36,14 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
 
         const sequences = await this.db.sequencesDb.list()
         const cronTriggers = await this.db.cronDb.list()
+        const pins = await this.db.pinsDb.list()
 
-
+        await this.pinManager.start(pins)
 
         sequences.forEach(seq => {
             this.sequences[seq.id] = new Sequence(seq, this.pinManager, this.db)
         })
+
 
         const cronManager = new CronManager(
             cronTriggers.map(({ id, cron }) => ({ id, cron })),
@@ -77,6 +79,13 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
         this.db.sequencesDb.addListener('insert', insertSequence)
         this.db.sequencesDb.addListener('update', updateSequence)
         this.db.sequencesDb.addListener('remove', removeSequence)
+
+
+        // PinDb life cycle                
+        this.db.pinsDb.addListener('insert', this.pinManager.insert)
+        this.db.pinsDb.addListener('update', this.pinManager.update)
+        this.db.pinsDb.addListener('remove', this.pinManager.remove)
+
 
         // CronDB life cycle
         this.db.cronDb.addListener('update', updateCron)
@@ -120,6 +129,11 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
             this.db.sequencesDb.removeListener('update', updateSequence)
             this.db.sequencesDb.removeListener('remove', removeSequence)
 
+            // Clean PinDb life cycle                
+            this.db.pinsDb.removeListener('insert', this.pinManager.insert)
+            this.db.pinsDb.removeListener('update', this.pinManager.update)
+            this.db.pinsDb.removeListener('remove', this.pinManager.remove)
+
             // Clean CronDB life cycle
             this.db.cronDb.removeListener('update', updateCron)
             this.db.cronDb.removeListener('insert', insertCron)
@@ -141,7 +155,11 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
 
     run = async (id: SequenceDBType['id']) => this.sequences[id]?.run()
     stop = async (id: SequenceDBType['id']) => this.sequences[id]?.stop()
-    resetPinManager = async () => await this.pinManager.rest()
+    resetPinManager = async () => {
+        this.pinManager.cleanup && await this.pinManager.cleanup()
+        const pins = await this.db.pinsDb.list()
+        await this.pinManager.start(pins)
+    }
     getReservedPins: () => { pin: PinDbType; sequenceId: number }[] = () => this.pinManager.getReservedPins()
     channelsStatus: () => Promise<{ [key: number]: boolean }> = () => this.pinManager.channelsStatus();
     running = () => this.pinManager.running();
