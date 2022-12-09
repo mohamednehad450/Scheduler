@@ -2,13 +2,18 @@ import EventEmitter from "events";
 import gpio, { config } from "./gpio";
 import { PinDbType, SequenceDBType } from "../db";
 
+type RunnableSequence = {
+    id: SequenceDBType['id'],
+    name: SequenceDBType['name'],
+    orders: SequenceDBType['orders'],
+}
 
 interface GpioManager {
-    run: (data: SequenceDBType) => string | void
-    running: () => SequenceDBType['id'][]
-    stop: (id: SequenceDBType['id']) => Promise<void>
+    run: (data: RunnableSequence) => string | void
+    running: () => RunnableSequence['id'][]
+    stop: (id: RunnableSequence['id']) => Promise<void>
     channelsStatus: () => Promise<{ [key: PinDbType['channel']]: boolean }>
-    getReservedPins: () => { pin: PinDbType, sequenceId: SequenceDBType['id'] }[]
+    getReservedPins: () => { pin: PinDbType, sequenceId: RunnableSequence['id'] }[]
     cleanup?: () => Promise<void>
 }
 
@@ -110,12 +115,12 @@ class PinManager extends EventEmitter implements GpioManager {
     }
 
 
-    run = (data: SequenceDBType) => {
-        if (this.orders[data.id]) {
-            this.emit('failed', 'run', `Sequence: ${data.name} is already.`)
-            return `Sequence: ${data.name} is already.`
+    run = (sequence: RunnableSequence) => {
+        if (this.orders[sequence.id]) {
+            this.emit('failed', 'run', `Sequence: ${sequence.name} is already.`)
+            return `Sequence: ${sequence.name} is already.`
         }
-        for (const order of data.orders) {
+        for (const order of sequence.orders) {
             if (this.reservedPins[order.channel]) {
                 this.emit('failed', 'run', `Pin: ${order.Pin.label} (channel: ${order.channel}) is reserved.`)
                 return `Pin: ${order.Pin.label} (channel: ${order.channel}) is reserved.`
@@ -127,12 +132,10 @@ class PinManager extends EventEmitter implements GpioManager {
         }
 
 
-        data.orders.map(p => { this.reservedPins[p.channel] = data.id })
+        sequence.orders.map(p => { this.reservedPins[p.channel] = sequence.id })
 
-        const runOrders: RunOrder[] = data.orders.map(order => {
+        const runOrders: RunOrder[] = sequence.orders.map(order => {
             const pin = this.pins[order.channel]
-            if (!pin) throw new Error('Impossible State')
-
             return {
                 pin,
                 startTimer: setTimeout(() => {
@@ -153,19 +156,19 @@ class PinManager extends EventEmitter implements GpioManager {
                 }, order.duration + order.offset)
             }
         })
-        const maxDuration = Math.max(...data.orders.map(r => r.duration + r.offset)) + 10
-        this.orders[data.id] = {
+        const maxDuration = Math.max(...sequence.orders.map(r => r.duration + r.offset)) + 10
+        this.orders[sequence.id] = {
             runOrders,
             clearTimer: setTimeout(
                 () => {
                     runOrders.forEach(r => delete this.reservedPins[r.pin.channel])
-                    delete this.orders[data.id]
-                    this.emit('finish', data.id)
+                    delete this.orders[sequence.id]
+                    this.emit('finish', sequence.id)
                 },
                 maxDuration
             )
         }
-        this.emit('run', data.id)
+        this.emit('run', sequence.id)
     }
 
 
@@ -221,3 +224,4 @@ class PinManager extends EventEmitter implements GpioManager {
 }
 
 export default PinManager
+export { RunnableSequence }

@@ -13,7 +13,8 @@ type AppDB = {
     pinsDb: PinDb,
     cronDb: CronDb,
     cronSequenceLink: CronSequenceLink
-    adminDb: AdminDb
+    adminDb: AdminDb,
+    prisma: PrismaClient
 }
 
 
@@ -34,7 +35,8 @@ const initDb = async (): Promise<AppDB> => {
         pinsDb,
         cronDb,
         cronSequenceLink,
-        adminDb
+        adminDb,
+        prisma,
     }
 }
 

@@ -2,10 +2,9 @@
 import { AppDB, } from '../db'
 import PinManager from './PinManager'
 import CronManager from './CronManager'
-import Sequence from './Sequence'
 import { PinDbType, SequenceDBType, CronDbType } from '../db'
 import EventEmitter from 'events'
-import { triggerCron } from './utils'
+import { runSequence, triggerCron } from './utils'
 
 interface SchedulerInterface<K> {
     start: () => Promise<void>
@@ -20,7 +19,6 @@ interface SchedulerInterface<K> {
 class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBType['id']> {
 
     pinManager: PinManager
-    sequences: { [key: SequenceDBType['id']]: Sequence }
     db: AppDB
     cleanup?: () => void
 
@@ -29,26 +27,21 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
         super()
         this.db = db
         this.pinManager = new PinManager()
-        this.sequences = {}
     }
 
 
     start = async () => {
 
-        const sequences = await this.db.sequencesDb.list()
-        const cronTriggers = await this.db.cronDb.list()
-        const pins = await this.db.pinsDb.list()
+        const [pins, cronTriggers] = await this.db.prisma.$transaction([
+            this.db.prisma.pin.findMany(),
+            this.db.prisma.cron.findMany({ select: { cron: true, id: true } }),
+        ])
 
         await this.pinManager.start(pins)
 
-        sequences.forEach(seq => {
-            this.sequences[seq.id] = new Sequence(seq, this.pinManager, this.db)
-        })
-
-
         const cronManager = new CronManager(
             cronTriggers.map(({ id, cron }) => ({ id, cron })),
-            (id) => triggerCron(this.db.cronDb, id, this.sequences)
+            (id) => triggerCron(id, this.db, this.pinManager)
         )
 
 
@@ -64,24 +57,6 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
         }
 
 
-        const insertSequence = (seq: SequenceDBType) => {
-            this.sequences[seq.id] = new Sequence(seq, this.pinManager, this.db)
-        }
-        const updateSequence = (seq: SequenceDBType) => {
-            this.sequences[seq.id]?.update(seq)
-        }
-        const removeSequence = (id: SequenceDBType['id']) => {
-            this.sequences[id]?.stop()
-            delete this.sequences[id]
-        }
-
-
-        // SequenceDB life cycle
-        this.db.sequencesDb.addListener('insert', insertSequence)
-        this.db.sequencesDb.addListener('update', updateSequence)
-        this.db.sequencesDb.addListener('remove', removeSequence)
-
-
         // PinDb life cycle                
         this.db.pinsDb.addListener('insert', this.pinManager.insert)
         this.db.pinsDb.addListener('update', this.pinManager.update)
@@ -95,18 +70,20 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
 
 
         const eventHandler = (event: 'run' | 'stop' | 'finish' | 'activate' | 'deactivate') => (id: SequenceDBType['id']) => {
-            this.db.sequenceEventsDb.emit({
-                sequenceId: id,
-                eventType: event,
-                date: new Date()
-            })
-                .then((e) => {
-                    this.emit(e.eventType, e.id, e.date)
+            const date = Date()
+            this.emit(event, id, date)
+
+            setTimeout(() => {
+                this.db.sequenceEventsDb.emit({
+                    sequenceId: id,
+                    eventType: event,
+                    date,
                 })
-                .catch(err => {
-                    console.error(`Failed to emit SequenceEvent (id:${id}, event:${event}), database error`, err)
-                    // TODO
-                })
+                    .catch(err => {
+                        console.error(`Failed to emit SequenceEvent (id:${id}, event:${event}), database error`, err)
+                        // TODO
+                    })
+            }, 100)
         }
 
         const channelChange = (...args: any) => this.emit('channelChange', ...args)
@@ -125,10 +102,6 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
         cronManager.startAll()
 
         this.cleanup = () => {
-            // Clean SequenceDB life cycle
-            this.db.sequencesDb.removeListener('insert', insertSequence)
-            this.db.sequencesDb.removeListener('update', updateSequence)
-            this.db.sequencesDb.removeListener('remove', removeSequence)
 
             // Clean PinDb life cycle                
             this.db.pinsDb.removeListener('insert', this.pinManager.insert)
@@ -154,8 +127,15 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
 
 
 
-    run = async (id: SequenceDBType['id']) => this.sequences[id]?.run()
-    stop = async (id: SequenceDBType['id']) => this.sequences[id]?.stop()
+    run = async (id: SequenceDBType['id']) => {
+        const sequence = await this.db.prisma.sequence
+            .findUnique({
+                where: { id },
+                include: { orders: { include: { Pin: { select: { label: true } } } } },
+            })
+        sequence && runSequence(sequence, this.pinManager, this.db)
+    }
+    stop = async (id: SequenceDBType['id']) => this.pinManager.stop(id)
     resetPinManager = async () => {
         this.pinManager.cleanup && await this.pinManager.cleanup()
         const pins = await this.db.pinsDb.list()

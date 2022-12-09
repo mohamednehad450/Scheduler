@@ -1,28 +1,35 @@
-import { AppDB, CronDbType, SequenceDBType } from "../db";
-import Sequence from "./Sequence";
+import { AppDB, CronDbType } from "../db";
+import PinManager, { RunnableSequence } from "./PinManager";
 
+const triggerCron = (id: CronDbType['id'], db: AppDB, pm: PinManager) => {
 
-const triggerCron = (cronDb: AppDB['cronDb'], id: CronDbType['id'], sequences: { [key: SequenceDBType['id']]: Sequence }) => {
-    cronDb.get(id)
-        .then(cron => cron && runIfActive(cron.CronSequence, sequences))
+    db.prisma.sequence.findMany({
+        where: { CronSequence: { some: { cronId: id }, }, active: true },
+        include: { orders: { include: { Pin: { select: { label: true } } } } },
+        orderBy: { lastRun: 'asc' }
+    })
+        .then(sequences => {
+            const updates: any = sequences.map(s => runSequence(s, pm, db)).filter(u => u)
+            return db.prisma.$transaction(updates)
+        })
         .catch(err => {
             console.error(`Failed to trigger Cronjob (id:${id}), database error`, err)
             // TODO
         })
 }
 
-
-
-const runIfActive = (ids: CronDbType['CronSequence'], sequences: { [key: SequenceDBType['id']]: Sequence }) => {
-    ids.forEach(({ sequence: { id } }) => {
-        if (sequences[id]?.isActive()) {
-            sequences[id]?.run()
-        }
+const runSequence = (s: RunnableSequence, pm: PinManager, db: AppDB) => {
+    const err = pm.run(s)
+    if (err) return false
+    const lastRun = new Date()
+    return db.prisma.sequence.update({
+        where: { id: s.id },
+        data: { lastRun }
     })
 }
 
 
 export {
     triggerCron,
-    runIfActive,
+    runSequence,
 }
