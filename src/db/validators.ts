@@ -1,5 +1,5 @@
 import Joi from "joi"
-import { config } from "../pi/gpio"
+import { config } from "../pi/utils"
 import { noOverlappingOrders, cronValidation } from "./customValidators"
 
 const Channel = Joi.number().valid(...config.validPins)

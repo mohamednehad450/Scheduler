@@ -1,6 +1,7 @@
 import EventEmitter from "events";
-import gpio, { config } from "./gpio";
 import { PinDbType, SequenceDBType } from "../db";
+import { config, gpio } from "./utils";
+
 
 type RunnableSequence = {
     id: SequenceDBType['id'],
