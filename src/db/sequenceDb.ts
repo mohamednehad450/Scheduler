@@ -1,12 +1,21 @@
 
 import EventEmitter from "events"
-import { Sequence, Order, PrismaClient, Cron, } from '@prisma/client'
+import { Sequence, PrismaClient, Cron, } from '@prisma/client'
 import { DB } from "./db";
 import { ObjectSchema } from "joi";
 
 
+type Order = {
+    channel: number,
+    duration: number,
+    offset: number,
+    Pin: {
+        label: string
+    }
+}
 
-type SequenceWithOrders = (Sequence & { orders: (Order & { Pin: { label: string } })[] })
+
+type SequenceWithOrders = (Sequence & { orders: Order[] })
 
 type SequenceDBType = SequenceWithOrders & { CronSequence: { cron: Cron }[] }
 
@@ -18,12 +27,15 @@ const include = {
         }
     },
     orders: {
-        include: {
+        select: {
             Pin: {
                 'select': {
                     label: true
                 }
-            }
+            },
+            duration: true,
+            offset: true,
+            channel: true
         }
     }
 }
