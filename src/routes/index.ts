@@ -9,7 +9,7 @@ const routes = {
     PIN: '/pin',
     CRON: '/cron',
     EVENTS: {
-        SEQUENCE: "/events/sequences"
+        SEQUENCE: "/event/sequence"
     },
     LINK: '/link',
     // /link/cron/:id and /link/sequence/:id are created with cronSequenceLink
