@@ -85,21 +85,6 @@ class PinManager extends EventEmitter implements GpioManager {
     }
 
 
-    // Updated old pin 
-    update = (newPin: PinDbType) => {
-        const oldPin = this.pins[newPin.channel]
-        if (!oldPin) return
-        this.pins[newPin.channel] = newPin
-        if (oldPin.onState === newPin.onState) return
-
-        const id = this.reservedPins[newPin.channel]
-        if (id) {
-            this.stop(id)
-        }
-        gpio.promise.write(newPin.channel, newPin.onState === "LOW")
-    }
-
-
     // Remove old pin
     remove = (channel: PinDbType['channel']) => {
         const id = this.reservedPins[channel]

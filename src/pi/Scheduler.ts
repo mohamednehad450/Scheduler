@@ -59,7 +59,7 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
 
         // PinDb life cycle                
         this.db.pinsDb.addListener('insert', this.pinManager.insert)
-        this.db.pinsDb.addListener('update', this.pinManager.update)
+        this.db.pinsDb.addListener('update', this.resetPinManager)
         this.db.pinsDb.addListener('remove', this.pinManager.remove)
 
 
@@ -105,7 +105,7 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
 
             // Clean PinDb life cycle                
             this.db.pinsDb.removeListener('insert', this.pinManager.insert)
-            this.db.pinsDb.removeListener('update', this.pinManager.update)
+            this.db.pinsDb.removeListener('update', this.resetPinManager)
             this.db.pinsDb.removeListener('remove', this.pinManager.remove)
 
             // Clean CronDB life cycle
