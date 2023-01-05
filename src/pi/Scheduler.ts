@@ -133,7 +133,11 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
                 where: { id },
                 include: { orders: { include: { Pin: { select: { label: true } } } } },
             })
-        sequence && runSequence(sequence, this.pinManager, this.db)
+        const result = sequence && runSequence(sequence, this.pinManager, this.db)
+        if (result) {
+            result
+                .catch(err => console.error("Failed to update lasRun, err: ", err))
+        }
     }
     stop = async (id: SequenceDBType['id']) => this.pinManager.stop(id)
     resetPinManager = async () => {
