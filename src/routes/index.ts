@@ -16,7 +16,7 @@ const routes = {
     AUTH: '/auth'
 
 }
-const stringToNum = (s: string) => Number(s)
+const stringToNum = (s: string) => Number(s) || -1
 
 export default (app: Express, io: Server, db: AppDB) => {
     app.use(routes.EVENTS.SEQUENCE, withAuth, Events(db.sequenceEventsDb, stringToNum))
