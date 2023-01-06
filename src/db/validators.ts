@@ -86,6 +86,13 @@ const UserSchema = Joi.object({
         .required()
 })
 
+const LinkArraySchema = Joi.array()
+    .items(
+        Joi.number()
+            .min(1)
+    )
+    .required()
+
 export {
     SequenceSchema,
     SequencePartialSchema,
@@ -96,5 +103,6 @@ export {
     CronSchema,
     CronPartialSchema,
     UserSchema,
+    LinkArraySchema,
 }
 

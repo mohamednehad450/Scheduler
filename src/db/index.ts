@@ -5,7 +5,7 @@ import { PinDb, PinDbType } from "./pinsDb"
 import { SequenceDb, SequenceDBType } from "./sequenceDb"
 import { SequenceEventsDb, SequenceEventDBType } from "./sequenceEventsDb"
 import AdminDb from "./adminDb"
-import { PinSchema, PinPartialSchema, SequencePartialSchema, SequenceSchema, SequenceEventSchema, CronSchema, CronPartialSchema } from "./validators"
+import { PinSchema, PinPartialSchema, SequencePartialSchema, SequenceSchema, SequenceEventSchema, CronSchema, CronPartialSchema, LinkArraySchema } from "./validators"
 
 type AppDB = {
     sequencesDb: SequenceDb,
@@ -26,7 +26,7 @@ const initDb = async (): Promise<AppDB> => {
     const sequenceEventsDb = new SequenceEventsDb(prisma, SequenceEventSchema)
     const pinsDb = new PinDb(prisma, PinSchema, PinPartialSchema)
     const cronDb = new CronDb(prisma, CronSchema, CronPartialSchema)
-    const cronSequenceLink = new CronSequenceLink(prisma)
+    const cronSequenceLink = new CronSequenceLink(prisma, LinkArraySchema)
     const adminDb = new AdminDb(prisma)
 
     return {

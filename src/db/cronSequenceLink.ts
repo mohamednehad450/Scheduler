@@ -1,4 +1,5 @@
 import { PrismaClient } from "@prisma/client";
+import Joi, { ArraySchema } from "joi";
 import { CronDbType, cronInclude } from "./cronDb";
 import { SequenceDBType, sequenceInclude } from "./sequenceDb";
 
@@ -12,18 +13,23 @@ interface CronSequenceLinkInterface {
 class CronSequenceLink implements CronSequenceLinkInterface {
 
     prisma: PrismaClient
+    validator: ArraySchema
 
-    constructor(prisma: PrismaClient) {
+    constructor(prisma: PrismaClient, validator: ArraySchema) {
         this.prisma = prisma
+        this.validator = validator
     }
 
     linkSequence = async (sequenceId: SequenceDBType['id'], cronsIds: CronDbType['id'][]) => {
+        const { value: data, error }: Joi.ValidationResult<number[]> = this.validator.validate(cronsIds)
+        if (error) throw error
+
 
         const oldLinks = this.prisma.cronSequence.deleteMany({ where: { sequenceId } })
         const newLinks = this.prisma.sequence.update({
             where: { id: sequenceId },
             data: {
-                CronSequence: { create: cronsIds.map(cronId => ({ cronId })) }
+                CronSequence: { create: data?.map(cronId => ({ cronId })) }
             },
             include: sequenceInclude
         })
@@ -34,12 +40,15 @@ class CronSequenceLink implements CronSequenceLinkInterface {
     }
 
     linkCron = async (cronId: CronDbType['id'], sequencesIds: SequenceDBType['id'][]) => {
+        const { value: data, error }: Joi.ValidationResult<number[]> = this.validator.validate(sequencesIds)
+        if (error) throw error
+
 
         const oldLinks = this.prisma.cronSequence.deleteMany({ where: { cronId } })
         const newLinks = this.prisma.cron.update({
             where: { id: cronId },
             data: {
-                CronSequence: { create: sequencesIds.map(sequenceId => ({ sequenceId })) }
+                CronSequence: { create: data?.map(sequenceId => ({ sequenceId })) }
             },
             include: cronInclude
         })

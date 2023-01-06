@@ -183,6 +183,11 @@ export const cronSequenceLink = (db: AppDB['cronSequenceLink'], stringToKey: (s:
                 res.json(sequence)
             })
             .catch(err => {
+                if (err.isJoi) {
+                    res.status(400)
+                    res.json({ ...err, error: "VALIDATION ERROR" })
+                    return
+                }
                 res.status(500)
                 res.json(err)
             })
@@ -194,6 +199,11 @@ export const cronSequenceLink = (db: AppDB['cronSequenceLink'], stringToKey: (s:
                 res.json(cron)
             })
             .catch(err => {
+                if (err.isJoi) {
+                    res.status(400)
+                    res.json({ ...err, error: "VALIDATION ERROR" })
+                    return
+                }
                 res.status(500)
                 res.json(err)
             })
