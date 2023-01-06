@@ -5,8 +5,8 @@ import { SequenceDBType, sequenceInclude } from "./sequenceDb";
 
 
 interface CronSequenceLinkInterface {
-    linkSequence: (sequenceId: SequenceDBType['id'], cronsIds: CronDbType['id'][]) => Promise<SequenceDBType>
-    linkCron: (cronId: CronDbType['id'], sequencesIds: SequenceDBType['id'][]) => Promise<CronDbType>
+    linkSequence: (sequenceId: SequenceDBType['id'], cronsIds: CronDbType['id'][]) => Promise<SequenceDBType | null>
+    linkCron: (cronId: CronDbType['id'], sequencesIds: SequenceDBType['id'][]) => Promise<CronDbType | null>
 
 }
 
@@ -21,6 +21,9 @@ class CronSequenceLink implements CronSequenceLinkInterface {
     }
 
     linkSequence = async (sequenceId: SequenceDBType['id'], cronsIds: CronDbType['id'][]) => {
+        const exists = await this.prisma.sequence.count({ where: { id: sequenceId } })
+        if (!exists) return null
+
         const { value: data, error }: Joi.ValidationResult<number[]> = this.validator.validate(cronsIds)
         if (error) throw error
 
@@ -40,6 +43,9 @@ class CronSequenceLink implements CronSequenceLinkInterface {
     }
 
     linkCron = async (cronId: CronDbType['id'], sequencesIds: SequenceDBType['id'][]) => {
+        const exists = await this.prisma.cron.count({ where: { id: cronId } })
+        if (!exists) return null
+
         const { value: data, error }: Joi.ValidationResult<number[]> = this.validator.validate(sequencesIds)
         if (error) throw error
 

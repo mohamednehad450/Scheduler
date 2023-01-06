@@ -180,6 +180,11 @@ export const cronSequenceLink = (db: AppDB['cronSequenceLink'], stringToKey: (s:
     router.post('/sequence/:id', (req, res) => {
         db.linkSequence(stringToKey(req.params.id), req.body)
             .then((sequence) => {
+                if (!sequence) {
+                    res.status(404)
+                    res.json({ error: "NOT FOUND" })
+                    return
+                }
                 res.json(sequence)
             })
             .catch(err => {
@@ -196,6 +201,11 @@ export const cronSequenceLink = (db: AppDB['cronSequenceLink'], stringToKey: (s:
     router.post('/cron/:id', (req, res) => {
         db.linkCron(stringToKey(req.params.id), req.body)
             .then((cron) => {
+                if (!cron) {
+                    res.status(404)
+                    res.json({ error: "NOT FOUND" })
+                    return
+                }
                 res.json(cron)
             })
             .catch(err => {
