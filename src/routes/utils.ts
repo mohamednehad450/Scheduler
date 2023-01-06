@@ -256,16 +256,19 @@ export const authCRUD = (db: AppDB['adminDb']) => {
             return
         }
 
-        const token = sign(
-            { username: admin.username },
-            process.env.TOKEN_KEY || '',
-            { expiresIn: "24h" }
-        );
-
-        res.json({
-            username: admin.username,
-            token
-        })
+        try {
+            const token = sign(
+                { username: admin.username },
+                process.env.TOKEN_KEY || '',
+                { expiresIn: "24h" }
+            );
+            res.json({
+                username: admin.username,
+                token
+            })
+        } catch (error) {
+            res.status(500).json(error)
+        }
     })
 
     router.post('/register', async (req, res) => {
@@ -281,15 +284,20 @@ export const authCRUD = (db: AppDB['adminDb']) => {
                     res.status(500).json({ error: "Failed to create admin user" })
                     return
                 }
-                const token = sign(
-                    { username: admin.username },
-                    process.env.TOKEN_KEY || '',
-                    { expiresIn: "24h" }
-                );
-                res.json({
-                    username: admin.username,
-                    token
-                })
+                try {
+                    const token = sign(
+                        { username: admin.username },
+                        process.env.TOKEN_KEY || '',
+                        { expiresIn: "24h" }
+                    );
+                    res.json({
+                        username: admin.username,
+                        token
+                    })
+                } catch (error) {
+                    res.status(500).json(error)
+                }
+
             })
             .catch(error => {
                 res.status(400).json(error)
