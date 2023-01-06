@@ -93,6 +93,8 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
 
 
     set = async (id: SequenceDBType['id'], arg: any) => {
+        const exists = await this.prisma.sequence.count({ where: { id } })
+        if (!exists) return null
 
         const { value: data, error } = this.validator.validate(arg)
 
@@ -113,6 +115,8 @@ class SequenceDb extends EventEmitter implements DB<Sequence['id'], SequenceDBTy
 
 
     update = async (id: SequenceDBType['id'], obj: any) => {
+        const exists = await this.prisma.sequence.count({ where: { id } })
+        if (!exists) return null
 
         const { value: data, error } = this.partialValidator.validate(obj)
 

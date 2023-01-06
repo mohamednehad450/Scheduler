@@ -49,6 +49,9 @@ class PinDb extends EventEmitter implements DB<Pin['channel'], PinDbType> {
 
 
     set = async (channel: Pin['channel'], arg: any) => {
+        const exists = await this.prisma.pin.count({ where: { channel } })
+        if (!exists) return null
+
         const { value: data, error } = this.validator.validate(arg)
 
         if (error) throw error
@@ -63,6 +66,8 @@ class PinDb extends EventEmitter implements DB<Pin['channel'], PinDbType> {
 
 
     update = async (channel: number, obj: any) => {
+        const exists = await this.prisma.pin.count({ where: { channel } })
+        if (!exists) return null
 
         const { error, value: data } = this.partialValidator.validate(obj)
 

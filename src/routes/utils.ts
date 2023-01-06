@@ -71,6 +71,11 @@ export const CRUD = <K, T>(db: DB<K, T>, stringToKey: (s: string) => K) => {
     router.put('/:id', (req, res) => {
         db.set(stringToKey(req.params.id), req.body)
             .then(m => {
+                if (!m) {
+                    res.status(404)
+                    res.json({ error: "NOT FOUND" })
+                    return
+                }
                 res.json(m)
             })
             .catch(err => {
@@ -89,6 +94,11 @@ export const CRUD = <K, T>(db: DB<K, T>, stringToKey: (s: string) => K) => {
     router.patch('/:id', (req, res) => {
         db.update(stringToKey(req.params.id), req.body)
             .then(m => {
+                if (!m) {
+                    res.status(404)
+                    res.json({ error: "NOT FOUND" })
+                    return
+                }
                 res.json(m)
             })
             .catch(err => {

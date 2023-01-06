@@ -66,6 +66,9 @@ class CronDb extends EventEmitter implements DB<Cron['id'], CronDbType> {
 
 
     set = async (id: CronDbType['id'], arg: any) => {
+        const exists = await this.prisma.cron.count({ where: { id } })
+        if (!exists) return null
+
         const { value: data, error } = this.validator.validate(arg)
 
         if (error) throw error
@@ -77,6 +80,8 @@ class CronDb extends EventEmitter implements DB<Cron['id'], CronDbType> {
 
 
     update = async (id: number, obj: any) => {
+        const exists = await this.prisma.cron.count({ where: { id } })
+        if (!exists) return null
 
         const { error, value: data } = this.partialValidator.validate(obj)
 
