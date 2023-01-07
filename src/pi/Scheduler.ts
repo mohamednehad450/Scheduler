@@ -4,7 +4,7 @@ import PinManager from './PinManager'
 import CronManager from './CronManager'
 import { PinDbType, SequenceDBType, CronDbType } from '../db'
 import EventEmitter from 'events'
-import { runSequence, triggerCron } from './utils'
+import { activationLogger, runSequence, triggerCron } from './utils'
 
 interface SchedulerInterface<K> {
     start: () => Promise<void>
@@ -32,9 +32,10 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
 
     start = async () => {
 
-        const [pins, cronTriggers] = await this.db.prisma.$transaction([
+        const [pins, cronTriggers, initialActivationStatus] = await this.db.prisma.$transaction([
             this.db.prisma.pin.findMany(),
             this.db.prisma.cron.findMany({ select: { cron: true, id: true } }),
+            this.db.prisma.sequence.findMany({ select: { id: true, active: true } })
         ])
 
         await this.pinManager.start(pins)
@@ -73,16 +74,16 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
             const date = Date()
             this.emit(event, id, date)
 
-            setTimeout(() => {
-                this.db.sequenceEventsDb.emit({
-                    sequenceId: id,
-                    eventType: event,
-                    date,
-                })
-                    .catch(err => {
-                        console.error(`Failed to emit SequenceEvent (id:${id}, event:${event}), database error`, err)
-                        // TODO
+            setTimeout(async () => {
+                try {
+                    await this.db.sequenceEventsDb.emit({
+                        sequenceId: id,
+                        eventType: event,
+                        date,
                     })
+                } catch (error) {
+                    console.error(`Failed to emit SequenceEvent (id:${id}, event:${event}), database error`, error)
+                }
             }, 100)
         }
 
@@ -90,6 +91,10 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
         const stop = eventHandler('stop')
         const run = eventHandler('run')
         const finish = eventHandler('finish')
+        const activationLoggerCleanup = activationLogger(
+            initialActivationStatus.reduce((acc, cur) => ({ ...acc, [cur.id]: cur.active }), {}),
+            this.db
+        )
 
 
         // PinManager events pass through
@@ -118,6 +123,7 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
             this.pinManager.removeListener('stop', stop)
             this.pinManager.removeListener('run', run)
             this.pinManager.removeListener('finish', finish)
+            activationLoggerCleanup()
 
             // Stop all Cron jobs
             cronManager.stopAll()

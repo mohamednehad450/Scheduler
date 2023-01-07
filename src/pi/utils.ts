@@ -1,4 +1,4 @@
-import { AppDB, CronDbType } from "../db";
+import { AppDB, CronDbType, SequenceDBType } from "../db";
 import PinManager, { RunnableSequence } from "./PinManager";
 import gpio from 'rpi-gpio'
 
@@ -67,6 +67,22 @@ const runSequence = (s: RunnableSequence, pm: PinManager, db: AppDB) => {
     })
 }
 
+const activationLogger = (initialStatus: { [key: SequenceDBType['id']]: boolean }, db: AppDB) => {
+    const status = initialStatus
+    const updater = async (seq: SequenceDBType) => {
+        if (seq.active !== status[seq.id]) {
+            status[seq.id] = seq.active
+            await db.sequenceEventsDb.emit({
+                eventType: seq.active ? "activate" : "deactivate",
+                sequenceId: seq.id,
+                date: new Date()
+            })
+        }
+    }
+    db.sequencesDb.addListener('update', updater)
+    return () => db.sequencesDb.removeListener('update', updater)
+}
+
 
 
 function logArgs(func: string, ...args: any) { console.log({ time: new Date().toLocaleTimeString(), func, args: JSON.stringify(args) }) }
@@ -105,5 +121,6 @@ export {
     config,
     triggerCron,
     runSequence,
+    activationLogger
 }
 export type { GpioConfig }
