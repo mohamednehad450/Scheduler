@@ -85,17 +85,6 @@ class PinManager extends EventEmitter implements GpioManager {
     }
 
 
-    // Remove old pin
-    remove = (channel: PinDbType['channel']) => {
-        const id = this.reservedPins[channel]
-        if (id) {
-            this.stop(id)
-        }
-        delete this.pins[channel]
-    }
-
-
-
     running = () => {
         return [...Object.keys(this.orders)].map(Number)
     }
