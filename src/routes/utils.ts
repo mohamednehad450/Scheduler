@@ -123,7 +123,10 @@ export const Events = <K, T>(db: EventsDB<K, T>, stringToKey: (s: string) => K) 
     const router = Router()
     // List all Events 
     router.get("/", (req, res) => {
-        db.listAll()
+        db.listAll({
+            page: Number(req.query.page),
+            perPage: Number(req.query.perPage)
+        })
             .then(ms => {
                 res.json(ms)
             })
@@ -135,8 +138,18 @@ export const Events = <K, T>(db: EventsDB<K, T>, stringToKey: (s: string) => K) 
 
     // List Events by parameter
     router.get('/:id', (req, res) => {
-        db.listByObject(stringToKey(req.params.id))
+        db.listByObject(
+            stringToKey(req.params.id),
+            {
+                page: Number(req.query.page),
+                perPage: Number(req.query.perPage)
+            })
             .then(m => {
+                if (!m) {
+                    res.status(404)
+                    res.json({ error: "NOT FOUND" })
+                    return
+                }
                 res.json(m)
             })
             .catch(err => {
