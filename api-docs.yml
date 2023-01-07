@@ -1,0 +1,1136 @@
+openapi: "3.0.2"
+info:
+  title: Scheduler api
+  description: "An api to control a raspberry pi gpio pins with complex sequences and cron triggers"
+  version: "1.0"
+servers:
+  - url: http://localhost:8000
+components:
+  schemas:
+    channel:
+      # Definition of a "channel" enum
+      type: integer
+      description: "The number of the physical pin on a raspberry pi"
+      enum:
+        - 3
+        - 5
+        - 7
+        - 8
+        - 10
+        - 11
+        - 12
+        - 13
+        - 15
+        - 16
+        - 18
+        - 19
+        - 21
+        - 22
+        - 23
+        - 24
+        - 26
+        - 29
+        - 31
+        - 32
+        - 33
+        - 35
+        - 36
+        - 37
+        - 38
+        - 40
+    Cron:
+      # Definition of a "Cron" object
+      type: object
+      description: "A Cron object with linked sequences"
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          readOnly: true
+        label:
+          type: string
+          description: "The Cron expression label"
+          example: "Every 3 minutes"
+        cron:
+          type: string
+          description: "A valid cron expression"
+          example: "* * * * * *"
+        CronSequence:
+          type: object
+          description: "A list of all linked sequences"
+          readOnly: true
+          properties:
+            sequence:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  minimum: 1
+                name:
+                  type: string
+                  example: "Light show 1"
+                active:
+                  type: boolean
+      required:
+        - label
+        - cron
+
+    Pin:
+      # Definition of a "Pin" object
+      type: object
+      description: "A Pin object"
+      properties:
+        label:
+          type: string
+          description: "A pin label"
+          example: "Relay 1"
+        onState:
+          type: string
+          description: "The on state of the pin"
+          enum:
+            - "HIGH"
+            - "LOW"
+        channel:
+          $ref: "#/components/schemas/channel"
+      required:
+        - channel
+        - label
+        - onState
+
+    Order:
+      type: object
+      description: "The Order object used in Sequence"
+      properties:
+        channel:
+          description: "The channel the order will run on"
+          $ref: "#/components/schemas/channel"
+        duration:
+          type: integer
+          description: "Run time after the offset in millisecond"
+          minimum: 10
+        offset:
+          type: integer
+          description: "Wait time before running in millisecond"
+          minimum: 0
+        Pin:
+          type: object
+          description: "Channel Pin label"
+          readOnly: true
+          properties:
+            label:
+              type: string
+      required:
+        - duration
+        - offset
+        - channel
+
+    Sequence:
+      # Definition of a "Sequence" object
+      type: object
+      description: "A Sequence object"
+      properties:
+        id:
+          type: integer
+          minimum: 1
+          readOnly: true
+        name:
+          type: string
+          description: "The name of a Sequence"
+          example: "Light show 1"
+        active:
+          type: boolean
+          description: "The Sequence status"
+          default: false
+        lastRun:
+          type: string
+          nullable: true
+          description: "The last time the Sequence ran"
+          example: "2022-12-31T22:00:00.000Z"
+          format: date-time
+        orders:
+          type: array
+          description: "A list of all the Sequence orders with no overlap on the same channel"
+          example:
+            - {
+                channel: 3,
+                offset: 0,
+                duration: 1500,
+                Pin: { label: "Relay 1" },
+              }
+            - {
+                channel: 7,
+                offset: 0,
+                duration: 1500,
+                Pin: { label: "Relay 3" },
+              }
+            - {
+                channel: 3,
+                offset: 1600,
+                duration: 100,
+                Pin: { label: "Relay 1" },
+              }
+            - {
+                channel: 5,
+                offset: 0,
+                duration: 1700,
+                Pin: { label: "Relay 2" },
+              }
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/Order"
+        CronSequence:
+          type: object
+          description: "A list of all linked Cron to the Sequence"
+          readOnly: true
+          properties:
+            cron:
+              type: object
+              properties:
+                id:
+                  type: integer
+                  minimum: 1
+                label:
+                  type: string
+                  description: "The Cron expression label"
+                  example: "Every 3 minutes"
+                cron:
+                  type: string
+                  description: "A valid cron expression"
+                  example: "* * * * * *"
+      required:
+        - "name"
+        - "orders"
+      example:
+        id: 1
+        name: "Sequence 1"
+        orders: [{ duration: 1000, offset: 0, channel: 3 }]
+        active: true
+        lastRun: null
+        CronSequence:
+          [{ cron: { id: 1, cron: "* * * * * *", label: "Every second" } }]
+
+    SequenceEvent:
+      # Definition of a "SequenceEvent" object
+      type: object
+      description: "A SequenceEvent object"
+      properties:
+        id:
+          type: integer
+          minimum: 1
+        sequenceId:
+          type: integer
+          minimum: 1
+        date:
+          type: string
+          description: "The event date"
+          example: "2022-12-31T22:00:00.000Z"
+          format: date-time
+        eventType:
+          type: string
+          description: "The event type"
+          enum:
+            - "run"
+            - "stop"
+            - "finish"
+            - "activate"
+            - "deactivate"
+        sequence:
+          type: object
+          properties:
+            name:
+              type: string
+      example:
+        id: 1
+        date: "2022-12-31T22:00:00.000Z"
+        sequenceId: 1
+        eventType: "run"
+        sequence: { name: "Sequence 1" }
+
+  securitySchemes:
+    auth:
+      # Authentication with an API key sent as a query string
+      type: apiKey
+      name: token
+      description: API key provided by the login credentials
+      in: query
+
+paths:
+  /sequence:
+    get:
+      # GET /sequence
+      description: "Return all the Sequences"
+      security:
+        - auth: []
+
+      responses:
+        "200":
+          description: "List with all the Sequences"
+          content:
+            "application/json":
+              schema:
+                # Returns an array of "Sequence" elements
+                type: array
+                items:
+                  $ref: "#/components/schemas/Sequence"
+        "403":
+          description: "Not authorized to do this operation"
+        "500":
+          description: "Internal server error"
+
+    post:
+      # POST /sequence
+      description: "Add a new Sequence"
+      security:
+        # This operation needs the client to be authenticated
+        - auth: []
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/Sequence"
+            examples:
+              simple:
+                summary: "A simple Sequence"
+                value:
+                  {
+                    name: "Light show 2",
+                    orders: [{ channel: 3, duration: 1000, offset: 0 }],
+                  }
+              complex:
+                summary: "A complex Sequence"
+                value:
+                  {
+                    name: "Light show 2",
+                    orders:
+                      [
+                        { "duration": 60000, "offset": 0, "channel": 3 },
+                        { "duration": 24000, "offset": 0, "channel": 5 },
+                        { "duration": 24000, "offset": 36000, "channel": 7 },
+                        { "duration": 30000, "offset": 6000, "channel": 8 },
+                        { "duration": 30000, "offset": 24000, "channel": 10 },
+                        { "duration": 30000, "offset": 0, "channel": 15 },
+                      ],
+                  }
+      responses:
+        "200":
+          description: "Sequence successfully added"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Sequence"
+        "403":
+          description: "Not authorized to do this operation"
+        "400":
+          description: "Bad request"
+        "500":
+          description: "Internal server error"
+
+  /sequence/{id}:
+    get:
+      # GET /sequence/{id}
+      description: "Return the sequence of the requested ID"
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          description: "ID of the sequence to request"
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "The requested sequence"
+          content:
+            "application/json":
+              schema:
+                # Returns the requested sequence
+                $ref: "#/components/schemas/Sequence"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Sequence with the requested ID not found"
+        "500":
+          description: "Internal server error"
+    put:
+      # PUT /sequence/{id}
+      description: "Update an existing Sequence"
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          description: "ID of the sequence to modify"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: New Sequence data to update
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/Sequence"
+            examples:
+              simple:
+                summary: "A simple Sequence"
+                value:
+                  {
+                    name: "Edited Light show 2",
+                    orders: [{ channel: 7, duration: 15000, offset: 0 }],
+                  }
+              complex:
+                summary: "A complex Sequence"
+                value:
+                  {
+                    name: "Edited Light show 2",
+                    orders:
+                      [
+                        { "duration": 6000, "offset": 0, "channel": 3 },
+                        { "duration": 2400, "offset": 0, "channel": 5 },
+                        { "duration": 2400, "offset": 3600, "channel": 7 },
+                        { "duration": 3000, "offset": 600, "channel": 8 },
+                        { "duration": 3000, "offset": 2400, "channel": 10 },
+                        { "duration": 3000, "offset": 0, "channel": 15 },
+                      ],
+                  }
+      responses:
+        "200":
+          description: "Sequence successfully updated"
+        "400":
+          description: "Bad request"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Sequence with the requested ID not found"
+        "500":
+          description: "Internal server error"
+    patch:
+      # PATCH /sequence/{id}
+      description: "Update an existing Sequence with partial data"
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          description: "ID of the sequence to modify"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Partial Sequence data to update
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/Sequence"
+            examples:
+              simple:
+                summary: "Activate a Sequence"
+                value: { active: true }
+              complex:
+                summary: "Modify a Sequence orders"
+                value:
+                  {
+                    orders:
+                      [
+                        { "duration": 6000, "offset": 0, "channel": 3 },
+                        { "duration": 3000, "offset": 2400, "channel": 10 },
+                        { "duration": 3000, "offset": 0, "channel": 15 },
+                      ],
+                  }
+      responses:
+        "200":
+          description: "Sequence successfully updated"
+        "400":
+          description: "Bad request"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Sequence with the requested ID not found"
+        "500":
+          description: "Internal server error"
+    delete:
+      # DELETE /sequence/{id}
+      description: "Delete the sequence with the specified ID"
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          description: "ID of the sequence to delete"
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Sequence successfully removed"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Sequence with the requested ID not found"
+        "500":
+          description: "Internal server error"
+  /pin:
+    get:
+      # GET /pin
+      description: "Return all the pins"
+      security:
+        - auth: []
+      responses:
+        "200":
+          description: "List with all the pins"
+          content:
+            "application/json":
+              schema:
+                # Returns an array of "Pin" elements
+                type: array
+                items:
+                  $ref: "#/components/schemas/Pin"
+        "403":
+          description: "Not authorized to do this operation"
+        "500":
+          description: "Internal server error"
+
+    post:
+      # POST /pin
+      description: "Add a new Pin"
+      security:
+        # This operation needs the client to be authenticated
+        - auth: []
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/Pin"
+      responses:
+        "200":
+          description: "Pin successfully added"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Pin"
+        "403":
+          description: "Not authorized to do this operation"
+        "400":
+          description: "Bad request"
+        "500":
+          description: "Internal server error"
+
+  /pin/{channel}:
+    get:
+      # GET /pin/{channel}
+      description: "Return the pin of the requested channel"
+      security:
+        - auth: []
+      parameters:
+        - name: channel
+          in: path
+          description: "Channel of the Pin to request"
+          required: true
+          schema:
+            $ref: "#/components/schemas/channel"
+      responses:
+        "200":
+          description: "The requested pin"
+          content:
+            "application/json":
+              schema:
+                # Returns the requested pin
+                $ref: "#/components/schemas/Pin"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Pin with the requested channel not found"
+        "500":
+          description: "Internal server error"
+    put:
+      # PUT /pin/{channel}
+      description: "Update an existing Pin"
+      security:
+        - auth: []
+      parameters:
+        - name: channel
+          in: path
+          description: "Channel of the Pin to request"
+          required: true
+          schema:
+            $ref: "#/components/schemas/channel"
+      requestBody:
+        description: New Pin data to update
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/Pin"
+            example: { label: "Edited Relay 1", onState: "LOW", channel: 7 }
+      responses:
+        "200":
+          description: "Pin successfully updated"
+        "400":
+          description: "Bad request"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Pin with the requested channel not found"
+        "500":
+          description: "Internal server error"
+    patch:
+      # PATCH /Pin/{channel}
+      description: "Update an existing Pin with partial data"
+      security:
+        - auth: []
+      parameters:
+        - name: channel
+          in: path
+          description: "Channel of the Pin to request"
+          required: true
+          schema:
+            $ref: "#/components/schemas/channel"
+      requestBody:
+        description: Partial Pin data to update
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/Pin"
+            examples:
+              onState:
+                summary: "Update onState"
+                value: { onState: "LOW" }
+              label:
+                summary: "Update label"
+                value: { label: "Edited label" }
+              channel:
+                summary: "Update channel"
+                value: { channel: 7 }
+              labelChannel:
+                summary: "Update label and channel"
+                value: { channel: 7, label: "Edited Pin" }
+      responses:
+        "200":
+          description: "Pin successfully updated"
+        "400":
+          description: "Bad request"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Pin with the requested channel not found"
+        "500":
+          description: "Internal server error"
+    delete:
+      # DELETE /pin/{channel}
+      description: "Delete the pin with the specified channel"
+      security:
+        - auth: []
+      parameters:
+        - name: channel
+          in: path
+          description: "Channel of the Pin to request"
+          required: true
+          schema:
+            $ref: "#/components/schemas/channel"
+      responses:
+        "200":
+          description: "Pin successfully removed"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Pin with the requested channel not found"
+        "500":
+          description: "Internal server error"
+  /cron:
+    get:
+      # GET /cron
+      description: "Return all the Crons"
+      security:
+        - auth: []
+      responses:
+        "200":
+          description: "List with all the Crons"
+          content:
+            "application/json":
+              schema:
+                # Returns an array of "Cron" elements
+                type: array
+                items:
+                  $ref: "#/components/schemas/Cron"
+        "403":
+          description: "Not authorized to do this operation"
+        "500":
+          description: "Internal server error"
+
+    post:
+      # POST /cron
+      description: "Add a new Cron"
+      security:
+        # This operation needs the client to be authenticated
+        - auth: []
+      requestBody:
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/Cron"
+            examples:
+              simple:
+                summary: "A simple Cron"
+                value: { label: "Every Second", cron: "* * * * * *" }
+              complex:
+                summary: "7 AM only on Weekends Cron"
+                value: { label: "Weekends", cron: "0 0 7 * * 0,6" }
+      responses:
+        "200":
+          description: "Cron successfully added"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Cron"
+        "403":
+          description: "Not authorized to do this operation"
+        "400":
+          description: "Bad request"
+        "500":
+          description: "Internal server error"
+
+  /cron/{id}:
+    get:
+      # GET /cron/{id}
+      description: "Return the Cron of the requested ID"
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          description: "ID of the Cron to request"
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "The requested Cron"
+          content:
+            "application/json":
+              schema:
+                # Returns the requested Cron
+                $ref: "#/components/schemas/Cron"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Cron with the requested ID not found"
+        "500":
+          description: "Internal server error"
+    put:
+      # PUT /Cron/{id}
+      description: "Update an existing Cron"
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          description: "ID of the Cron to modify"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: New Cron data to update
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/Cron"
+            examples:
+              simple:
+                summary: "A simple Cron"
+                value: { label: "Every other second", cron: "0/2 * * * * *" }
+              complex:
+                summary: "6:30 AM only on weekdays"
+                value:
+                  { label: "6:30 AM weekdays", cron: "0 30 6 * * 1,2,3,4,5" }
+      responses:
+        "200":
+          description: "Cron successfully updated"
+        "400":
+          description: "Bad request"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Cron with the requested ID not found"
+        "500":
+          description: "Internal server error"
+    patch:
+      # PATCH /cron/{id}
+      description: "Update an existing Cron with partial data"
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          description: "ID of the cron to modify"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: Partial Cron data to update
+        required: true
+        content:
+          "application/json":
+            schema:
+              $ref: "#/components/schemas/Cron"
+            example: { label: "Edited Cron", cron: "* * * * * *" }
+      responses:
+        "200":
+          description: "Cron successfully updated"
+        "400":
+          description: "Bad request"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Cron with the requested ID not found"
+        "500":
+          description: "Internal server error"
+    delete:
+      # DELETE /cron/{id}
+      description: "Delete the cron with the specified ID"
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          description: "ID of the cron to delete"
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Cron successfully removed"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Cron with the requested ID not found"
+        "500":
+          description: "Internal server error"
+  /event/sequence:
+    get:
+      # GET /event/sequence
+      description: "Return all sequences events "
+      security:
+        - auth: []
+      parameters:
+        - name: perPage
+          in: query
+          required: false
+          description: "Number of events to include per page"
+          schema:
+            type: number
+            default: 20
+        - name: page
+          in: query
+          required: false
+          description: "Number of the requested page"
+          schema:
+            type: number
+            default: 1
+      responses:
+        "200":
+          description: "The requested sequence"
+          content:
+            "application/json":
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SequenceEvent"
+                  page:
+                    type: object
+                    properties:
+                      current:
+                        type: number
+                        description: "The number of the current page"
+                      total:
+                        type: number
+                        description: "Total number of pages"
+                      perPage:
+                        type: number
+                        description: "Amount of events per page"
+                    example: { current: 1, perPage: 20, total: 10 }
+        "403":
+          description: "Not authorized to do this operation"
+        "500":
+          description: "Internal server error"
+    delete:
+      # DELETE /event/sequence/{id}
+      description: "Delete all events"
+      security:
+        - auth: []
+      responses:
+        "200":
+          description: "Events deleted successfully"
+        "403":
+          description: "Not authorized to do this operation"
+        "500":
+          description: "Internal server error"
+
+  /event/sequence/{id}:
+    get:
+      # GET /event/sequence/{id}
+      description: "Return all events of the sequence of the requested ID"
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The ID of the Sequence"
+          schema:
+            type: string
+        - name: perPage
+          in: query
+          required: false
+          description: "Number of events to include per page"
+          schema:
+            type: number
+            default: 20
+        - name: page
+          in: query
+          required: false
+          description: "Number of the requested page"
+          schema:
+            type: number
+            default: 1
+      responses:
+        "200":
+          description: "The requested sequence"
+          content:
+            "application/json":
+              schema:
+                type: object
+                properties:
+                  events:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/SequenceEvent"
+                  page:
+                    type: object
+                    properties:
+                      current:
+                        type: number
+                        description: "The number of the current page"
+                      total:
+                        type: number
+                        description: "Total number of pages"
+                      perPage:
+                        type: number
+                        description: "Amount of events per page"
+                    example: { current: 1, perPage: 20, total: 10 }
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Sequence with the requested ID not found"
+        "500":
+          description: "Internal server error"
+    delete:
+      # DELETE /event/sequence/{id}
+      description: "Delete all events of the sequence of the requested ID"
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: "The ID of the Sequence"
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Events deleted successfully"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Sequence with the requested ID not found"
+        "500":
+          description: "Internal server error"
+
+  /link/sequence/{id}:
+    post:
+      # POST /link/sequence/{id}
+      description: "Link a list of crons to the sequence with the specified ID"
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          description: "ID of the Sequence to link to"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: "A list of Cron IDs to link the sequence to"
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: array
+              items:
+                type: integer
+            example: [1]
+      responses:
+        "200":
+          description: "Crons linked successfully"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Sequence"
+        "400":
+          description: "Bad request"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Sequence with the requested ID not found"
+        "500":
+          description: "Internal server error"
+
+  /link/cron/{id}:
+    post:
+      # POST /link/cron/{id}
+      description: "Link a list of sequences to the cron with the specified ID"
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          description: "ID of the Cron to link to"
+          required: true
+          schema:
+            type: string
+      requestBody:
+        description: "A list of Sequence IDs to link the cron to"
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: array
+              items:
+                type: integer
+            example: [1]
+      responses:
+        "200":
+          description: "Sequences linked successfully"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Cron"
+        "400":
+          description: "Bad request"
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Cron with the requested ID not found"
+        "500":
+          description: "Internal server error"
+
+  /auth/login:
+    post:
+      # POST /auth/login
+      description: "Login with username and password(obtain an authentication token)"
+      requestBody:
+        description: "The username and password"
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+            example: { username: "admin", password: "SuperSecurePassword123" }
+      responses:
+        "200":
+          description: "Logged in successfully"
+          content:
+            "application/json":
+              schema:
+                type: object
+                properties:
+                  username:
+                    type: string
+                    example: "admin"
+                  token:
+                    type: string
+                    example: "<AUTHENTICATION TOKEN>"
+        "400":
+          description: "Missing username or password"
+        "403":
+          description: "Password incorrect"
+        "404":
+          description: "Username incorrect"
+        "409":
+          description: "Admin account  not registered yet"
+        "500":
+          description: "Failed to sign token"
+
+  /auth/register:
+    post:
+      # POST /auth/register
+      description: "Register the admin account for the first time"
+      requestBody:
+        description: "The username and password"
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: object
+              properties:
+                username:
+                  type: string
+                password:
+                  type: string
+            example: { username: "admin", password: "SuperSecurePassword123" }
+      responses:
+        "200":
+          description: "Registered successfully"
+          content:
+            "application/json":
+              schema:
+                type: object
+                properties:
+                  username:
+                    type: string
+                    example: "admin"
+                  token:
+                    type: string
+                    example: "<AUTHENTICATION TOKEN>"
+        "400":
+          description: "Missing username or password, or invalid password"
+        "409":
+          description: "Admin account already registered"
+        "500":
+          description: "Failed to sign token"
+
+  /auth/validate:
+    post:
+      # POST /auth/validate
+      description: "Validate a token"
+      requestBody:
+        description: "The token to be validated"
+        required: true
+        content:
+          "application/json":
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+
+            example: { token: "<AUTHENTICATION TOKEN>" }
+      responses:
+        "200":
+          description: "Token is valid"
+        "403":
+          description: "Token is invalid"
