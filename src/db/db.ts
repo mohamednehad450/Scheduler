@@ -23,7 +23,7 @@ interface EventsDB<K, T> {
     emit: (obj: any) => Promise<T>
     get: (id: K,) => Promise<T | null>
     remove: (id: K) => Promise<void>
-    removeByObject: (objId: any) => Promise<void>
+    removeByObject: (objId: any) => Promise<boolean>
     removeAll: () => Promise<void>
     listAll: (page?: Page) => Promise<{ events: T[], page: Pagination }>
     listByObject: (objId: any, page?: Page) => Promise<{ events: T[], page: Pagination } | null>

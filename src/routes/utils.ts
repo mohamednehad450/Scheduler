@@ -161,7 +161,12 @@ export const Events = <K, T>(db: EventsDB<K, T>, stringToKey: (s: string) => K) 
     // Delete Events by parameter
     router.delete("/:id", (req, res) => {
         db.removeByObject(stringToKey(req.params.id))
-            .then(() => {
+            .then((success) => {
+                if (!success) {
+                    res.status(404)
+                    res.json({ error: "NOT FOUND" })
+                    return
+                }
                 res.json()
             })
             .catch(err => {

@@ -39,7 +39,11 @@ class SequenceEventsDb implements EventsDB<SequenceEvent['id'], SequenceEventDBT
         await this.prisma.sequenceEvent.delete({ where: { id } })
     }
     removeByObject = async (sequenceId: number) => {
+        const exists = await this.prisma.sequence.count({ where: { id: sequenceId } })
+        if (!exists) return false
+
         await this.prisma.sequenceEvent.deleteMany({ where: { sequenceId } })
+        return true
     }
     removeAll = async () => {
         await this.prisma.sequenceEvent.deleteMany()
