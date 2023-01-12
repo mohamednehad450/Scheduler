@@ -1,7 +1,12 @@
 # Scheduler
 
 ## Table of content
+ - [Compatibility](#compatibility)
  - [Installation](#installation)
+    + [Docker](#docker)
+        - [Download from DockerHub](#download-from-dockerhub)
+        - [Build Docker image](#build-image-from-source)
+    + [Build from source](#from-source)
  - [API docs](#api-docs)
 
 ## Compatibility
@@ -11,6 +16,51 @@ This tool only works with 64bit operating systems (due to prisma not supporting 
 [Raspberry Pi OS 64bit](https://www.raspberrypi.com/software/operating-systems/#raspberry-pi-os-64-bit) is recommend for this tool
 
 ## Installation
+
+### Docker
+
+#### Install Docker
+1. Install docker
+    ```
+    curl -sSL https://get.docker.com | sh
+    ```
+2. Allow Docker to be used without being a root
+    ```
+    sudo usermod -aG docker $USER
+    ```
+3. Restart
+    ``` 
+    reboot
+    ```
+#### Build image from source
+1. Clone this project
+    ```
+    git clone https://github.com/mohamednehad450/Scheduler.git
+    cd Scheduler
+    ```
+2. Build the image 
+    ``` 
+    docker build -t scheduler .
+    ```
+3. Create a container
+    ```
+    docker container create --name scheduler_container -p 8000:8000 -v /sys:/sys -e TOKEN_KEY=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 50) -e DATABASE_URL=file:db.db scheduler
+    ```
+4. Start the container
+    ```
+    docker start scheduler_container
+    ```
+
+#### Download from DockerHub
+1. Create the container 
+    ```
+    docker container create --name scheduler_container -p 8000:8000 -v /sys:/sys -e TOKEN_KEY=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 50) -e DATABASE_URL=file:db.db mohamednehad450/scheduler:1.0
+    ```
+2. Start the container
+    ```
+    docker start scheduler_container
+    ```
+
 
 ### From source
 
@@ -53,51 +103,6 @@ This tool only works with 64bit operating systems (due to prisma not supporting 
     npx yarn start
     ```
 
-
-### Docker
-
-#### Install Docker
-1. Install docker
-    ```
-    curl -sSL https://get.docker.com | sh
-    ```
-2. Allow Docker to be used without being a root
-    ```
-    sudo usermod -aG docker $USER
-    ```
-3. Restart
-    ``` 
-    reboot
-    ```
-- Build image from source
-    1. Clone this project
-        ```
-        git clone https://github.com/mohamednehad450/Scheduler.git
-        cd Scheduler
-        ```
-    2. Build the image 
-        ``` 
-        docker build -t scheduler .
-        ```
-    3. Create a container
-        ```
-        docker container create --name scheduler_container -p 8000:8000 -v /sys:/sys -e TOKEN_KEY=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 50) -e DATABASE_URL=file:db.db scheduler
-        ```
-    4. Start the container
-        ```
-        docker start scheduler_container
-        ```
-
-- Download from DockerHub
-    1. Create the container 
-        ```
-        docker container create --name scheduler_container -p 8000:8000 -v /sys:/sys -e TOKEN_KEY=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 50) -e DATABASE_URL=file:db.db mohamednehad450/scheduler:1.0
-        ```
-    2. Start the container
-        ```
-        docker start scheduler_container
-        ```
-    
 
 ## API docs
 
