@@ -1,4 +1,3 @@
-
 import { AppDB, } from '../db'
 import PinManager from './PinManager'
 import CronManager from './CronManager'
@@ -8,7 +7,7 @@ import { activationLogger, runSequence, triggerCron } from './utils'
 
 interface SchedulerInterface<K> {
     start: () => Promise<void>
-    run: (id: K) => Promise<void>
+    run: (id: K) => Promise<string | null | SequenceDBType>
     running: () => K[]
     stop: (id: K) => Promise<void>
     channelsStatus: () => Promise<{ [key: PinDbType['channel']]: boolean }>
@@ -139,11 +138,11 @@ class Scheduler extends EventEmitter implements SchedulerInterface<SequenceDBTyp
                 where: { id },
                 include: { orders: { include: { Pin: { select: { label: true } } } } },
             })
-        const result = sequence && runSequence(sequence, this.pinManager, this.db)
-        if (result) {
-            result
-                .catch(err => console.error("Failed to update lasRun, err: ", err))
-        }
+        if (!sequence) return null // Not found
+        const result = runSequence(sequence, this.pinManager, this.db)
+        if (typeof result === "string") return result // Failed to run 
+
+        return await result
     }
     stop = async (id: SequenceDBType['id']) => this.pinManager.stop(id)
     resetPinManager = async () => {

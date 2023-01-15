@@ -1,6 +1,7 @@
 import { AppDB, CronDbType, SequenceDBType } from "../db";
 import PinManager, { RunnableSequence } from "./PinManager";
 import gpio from 'rpi-gpio'
+import { sequenceInclude } from "../db/sequenceDb";
 
 type GpioConfig = {
     validPins: number[],
@@ -48,7 +49,7 @@ const triggerCron = (id: CronDbType['id'], db: AppDB, pm: PinManager) => {
         orderBy: { lastRun: 'asc' }
     })
         .then(sequences => {
-            const updates: any = sequences.map(s => runSequence(s, pm, db)).filter(u => u)
+            const updates: any = sequences.map(s => runSequence(s, pm, db)).filter(u => !(typeof u === "string"))
             return db.prisma.$transaction(updates)
         })
         .catch(err => {
@@ -59,11 +60,12 @@ const triggerCron = (id: CronDbType['id'], db: AppDB, pm: PinManager) => {
 
 const runSequence = (s: RunnableSequence, pm: PinManager, db: AppDB) => {
     const err = pm.run(s)
-    if (err) return false
+    if (err) return err
     const lastRun = new Date()
     return db.prisma.sequence.update({
         where: { id: s.id },
-        data: { lastRun }
+        data: { lastRun },
+        include: sequenceInclude,
     })
 }
 
