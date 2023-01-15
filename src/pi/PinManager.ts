@@ -92,8 +92,8 @@ class PinManager extends EventEmitter implements GpioManager {
 
     run = (sequence: RunnableSequence) => {
         if (this.orders[sequence.id]) {
-            this.emit('failed', 'run', `Sequence: ${sequence.name} is already.`)
-            return `Sequence: ${sequence.name} is already.`
+            this.emit('failed', 'run', `Sequence: ${sequence.name} is already running.`)
+            return `Sequence: ${sequence.name} is already running.`
         }
         for (const order of sequence.orders) {
             if (this.reservedPins[order.channel]) {
