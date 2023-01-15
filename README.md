@@ -106,5 +106,5 @@ This tool only works with 64bit operating systems (due to prisma not supporting 
 
 ## API docs
 
- All of the API documentation and database models are in `api-docs.yaml`,you can view it in [SwaggerHub](https://app.swaggerhub.com/apis/MOHAMMEDNEHAD550/Scheduler/1.0#/default/post_sequence).
+ All of the API documentation and database models are in `api-docs.yaml`,you can view it in [SwaggerHub](https://app.swaggerhub.com/apis/mohamednehad450/Scheduler/1.0#/).
 
