@@ -27,11 +27,11 @@ app.use(function (req, res, next) {
 });
 
 initDb()
-    .then(appDb => {
-        routes(app, io, appDb)
+    .then(async (appDb) => {
+        await routes(app, io, appDb)
         httpServer.listen(PORT)
     })
     .catch(err => {
-        console.error('fail to start')
+        console.error('Failed to start')
         console.error(err)
     })

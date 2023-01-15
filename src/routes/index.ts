@@ -13,17 +13,18 @@ const routes = {
     },
     LINK: '/link',
     // /link/cron/:id and /link/sequence/:id are created with cronSequenceLink
-    AUTH: '/auth'
+    AUTH: '/auth',
+    ACTION: '/action',
 
 }
 const stringToNum = (s: string) => Number(s) || -1
 
-export default (app: Express, io: Server, db: AppDB) => {
+export default async (app: Express, io: Server, db: AppDB) => {
     app.use(routes.EVENTS.SEQUENCE, withAuth, Events(db.sequenceEventsDb, stringToNum))
     app.use(routes.SEQUENCE, withAuth, CRUD(db.sequencesDb, stringToNum))
     app.use(routes.PIN, withAuth, CRUD(db.pinsDb, stringToNum))
     app.use(routes.CRON, withAuth, CRUD(db.cronDb, stringToNum))
     app.use(routes.LINK, withAuth, cronSequenceLink(db.cronSequenceLink, stringToNum))
+    app.use(routes.ACTION, withAuth, await actions(io, db))
     app.use(routes.AUTH, authCRUD(db.adminDb))
-    actions(io, db)
 }
