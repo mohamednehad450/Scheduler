@@ -246,6 +246,34 @@ components:
         eventType: "run"
         sequence: { name: "Sequence 1" }
 
+    Status:
+      type: object
+      description: "The current state of the scheduler"
+      properties:
+        runningSequences:
+          type: array
+          description: "A list of all running sequences IDs"
+          items:
+            type: integer
+          example: [1, 2, 3]
+        reservedPins:
+          type: array
+          description: "A list of all reserved pins"
+          items:
+            type: object
+            properties:
+              pin:
+                $ref: "#/components/schemas/Pin"
+              sequenceId:
+                type: integer
+                description: "The sequence reserving this pin"
+        channelsStatus:
+          type: object
+          description: "The current status of all pins"
+          example: { "3": false, "5": true }
+          additionalProperties:
+            type: boolean
+
   securitySchemes:
     auth:
       # Authentication with an API key sent as a query string
@@ -1134,3 +1162,103 @@ paths:
           description: "Token is valid"
         "403":
           description: "Token is invalid"
+
+  /action/run/{id}:
+    post:
+      # POST /action/run/{id}
+      description: "Run the sequence with the requested ID."
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          description: "ID of the Sequence to run"
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Sequence ran successfully"
+          content:
+            "application/json":
+              schema:
+                type: object
+                properties:
+                  sequence:
+                    $ref: "#/components/schemas/Sequence"
+                  state:
+                    $ref: "#/components/schemas/Status"
+        "400":
+          description: "Bad request"
+          content:
+            "application/json":
+              schema:
+                type: object
+                properties:
+                  error:
+                    type: string
+        "403":
+          description: "Not authorized to do this operation"
+        "404":
+          description: "Sequence with the requested ID not found"
+        "500":
+          description: "Internal server error"
+
+  /action/stop/{id}:
+    post:
+      # POST /action/stop/{id}
+      description: "Stop the sequence with the requested ID."
+      security:
+        - auth: []
+      parameters:
+        - name: id
+          in: path
+          description: "ID of the Sequence to stop"
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: "Sequence sopped successfully"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Status"
+        "403":
+          description: "Not authorized to do this operation"
+        "500":
+          description: "Internal server error"
+  /action/reset:
+    post:
+      # POST /action/reset
+      description: "Reset the scheduler"
+      security:
+        - auth: []
+      responses:
+        "200":
+          description: "Reset successfully"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Status"
+        "403":
+          description: "Not authorized to do this operation"
+        "500":
+          description: "Internal server error"
+  /action/state:
+    get:
+      # GET /action/reset
+      description: "Get scheduler state"
+      security:
+        - auth: []
+      responses:
+        "200":
+          description: "Reset successfully"
+          content:
+            "application/json":
+              schema:
+                $ref: "#/components/schemas/Status"
+        "403":
+          description: "Not authorized to do this operation"
+        "500":
+          description: "Internal server error"
