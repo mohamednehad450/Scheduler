@@ -1247,13 +1247,13 @@ paths:
           description: "Internal server error"
   /action/state:
     get:
-      # GET /action/reset
+      # GET /action/state
       description: "Get scheduler state"
       security:
         - auth: []
       responses:
         "200":
-          description: "Reset successfully"
+          description: "The device state"
           content:
             "application/json":
               schema:
