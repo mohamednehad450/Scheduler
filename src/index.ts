@@ -1,12 +1,12 @@
+import { config } from 'dotenv'
+config()
 import express from 'express'
 import bodyParser from 'body-parser'
 import { Server } from 'socket.io'
 import { createServer, } from 'http'
 import routes from './routes'
 import { initDb } from './db';
-import { config } from 'dotenv'
 
-config()
 
 const PORT = process.env.PORT || 8000;
 
