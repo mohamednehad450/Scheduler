@@ -37,9 +37,11 @@ class PinDb extends EventEmitter implements DB<Pin['channel'], PinDbType> {
 
     remove = async (channel: number) => {
         const orders = this.prisma.order.deleteMany({ where: { channel } })
+        const cronSequence = this.prisma.cronSequence.deleteMany({ where: { sequence: { orders: { none: {} } } } })
+        const sequenceEvents = this.prisma.sequenceEvent.deleteMany({ where: { sequence: { orders: { none: {} } } } })
         const sequences = this.prisma.sequence.deleteMany({ where: { orders: { none: {} } } })
         const pin = this.prisma.pin.delete({ where: { channel } })
-        await this.prisma.$transaction([orders, sequences, pin])
+        await this.prisma.$transaction([orders, cronSequence, sequenceEvents, sequences, pin])
         this.emit('remove', channel)
     }
 
