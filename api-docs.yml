@@ -1262,3 +1262,26 @@ paths:
           description: "Not authorized to do this operation"
         "500":
           description: "Internal server error"
+  /action/time:
+    get:
+      # GET /action/time
+      description: "Get scheduler time"
+      security:
+        - auth: []
+      responses:
+        "200":
+          description: "The device time"
+          content:
+            "application/json":
+              schema:
+                type: object
+                properties:
+                  time:
+                    type: string
+                    example: "2022-12-31T22:00:00.000Z"
+                    format: date-time
+
+        "403":
+          description: "Not authorized to do this operation"
+        "500":
+          description: "Internal server error"
