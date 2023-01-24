@@ -81,7 +81,7 @@ export default async (io: Server, db: AppDB) => {
     })
 
     // Rest pin manager sequence
-    router.post("/rest", (req, res) => {
+    router.post("/reset", (req, res) => {
         scheduler.resetPinManager()
             .then(getState)
             .then((s) => res.json(s))
