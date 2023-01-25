@@ -66,7 +66,7 @@ class PinManager extends EventEmitter implements GpioManager {
 
         this.cleanup = async () => {
             await Promise.resolve([...Object.keys(this.orders)].map((id) => this.stop(Number(id))))
-            await gpio.promise.destroy()
+            await gpio.promise.destroy().catch(console.error)
             this.pins = {}
             this.reservedPins = {}
             this.orders = {}
