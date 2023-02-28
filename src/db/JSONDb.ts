@@ -11,7 +11,6 @@ export default class JSONDb<K, T> implements Db<K, T>  {
     map: Map<K, T>
 
     validators: ObjectValidators<T>
-
     keyExtractor: (item: T) => K
 
     constructor(dir: string, filename: string, validators: ObjectValidators<T>, keyExtractor: (item: T) => K) {
@@ -35,20 +34,24 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         }
 
         const content = await readFile(file, 'utf-8')
-        // Load if valid
+
         try {
             const arr = JSON.parse(content)
             if (!Array.isArray(arr)) throw Error('invalid JSONDb file')
 
-            if (!this.validators.loadValidator) return
+            if (!this.validators.loadValidator) {
+                arr.map(item => this.map.set(this.keyExtractor(item), item))
+                return
+            }
 
+            // Load if valid
             for (const item of arr) {
                 const { error, value } = this.validators.loadValidator.validate(item)
-
                 !error && value &&
                     this.map.set(this.keyExtractor(value), value)
             }
 
+            // Write if found invalid items
             if (this.map.size < arr.length) {
                 await writeFile(file, JSON.stringify([...this.map.values()]))
             }
@@ -127,7 +130,7 @@ export default class JSONDb<K, T> implements Db<K, T>  {
     }
     findBy = async (predict: Predict<T>, pagination?: Pagination) => {
         return this.applyPagination(
-            (await this.findAll()).filter(predict),
+            [...this.map.values()].filter(predict),
             pagination
         )
     }
