@@ -118,7 +118,13 @@ export default class JSONDbSync<K, T> implements DbSync<K, T>  {
         const { value, error } = this.validators.updateValidator.validate(arg)
         if (error || !value) throw error
 
-        const updatedObject = { ...this.map.get(key), ...value }
+        const updatedObject = { ...this.map.get(key), ...value } as T
+
+        // If key in updated, with an existing key
+        if (key !== this.keyExtractor(updatedObject) && this.map.has(this.keyExtractor(updatedObject))) throw new Error("Object Key already exists.")
+
+        // If key in updated
+        if (key !== this.keyExtractor(updatedObject)) this.map.delete(key)
 
         this.map.set(this.keyExtractor(updatedObject), updatedObject)
         this.save()
@@ -157,5 +163,6 @@ export default class JSONDbSync<K, T> implements DbSync<K, T>  {
 
     count = () => this.map.size
     countBy = (predict: Predict<T>) => [...this.map.values()].filter(predict).length
+    exists = (key: K) => this.map.has(key)
 }
 
