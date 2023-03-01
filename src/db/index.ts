@@ -1,46 +1,59 @@
-import { PrismaClient } from "@prisma/client"
-import { CronDb, CronDbType } from "./cronDb"
-import CronSequenceLink from "./cronSequenceLink"
-import { PinDb, PinDbType } from "./pinsDb"
-import { SequenceDb, SequenceDBType } from "./sequenceDb"
-import { SequenceEventsDb, SequenceEventDBType } from "./sequenceEventsDb"
-import AdminDb from "./adminDb"
-import { PinSchema, PinPartialSchema, SequencePartialSchema, SequenceSchema, SequenceEventSchema, CronSchema, CronPartialSchema, LinkArraySchema } from "./validators"
+import { sequenceValidators, cronValidators, pinsValidators, sequenceEventsValidators } from "./validators"
+import SequenceEventCRUD from "./SequenceEventCRUD"
+import SequenceCRUD from "./SequenceCRUD"
+import AdminCRUD from "./AdminCRUD"
+import CronCRUD from "./CronCRUD"
+import PinCRUD from "./PinsCRUD"
+import JSONDb from "./JSONDb"
+import { Admin, BaseCron, BaseSequence, BaseSequenceEvent, CronSequence, Pin } from "./types"
+import CronSequenceLink from "./CronSequenceLink"
 
 type AppDB = {
-    sequencesDb: SequenceDb,
-    sequenceEventsDb: SequenceEventsDb
-    pinsDb: PinDb,
-    cronDb: CronDb,
+    sequenceCRUD: SequenceCRUD,
+    pinCRUD: PinCRUD,
+    cronCRUD: CronCRUD,
+    adminCRUD: AdminCRUD,
+    sequenceEventCRUD: SequenceEventCRUD
     cronSequenceLink: CronSequenceLink
-    adminDb: AdminDb,
-    prisma: PrismaClient
 }
 
-
 const initDb = async (): Promise<AppDB> => {
-    const prisma = new PrismaClient()
-    await prisma.$connect()
 
-    const sequencesDb = new SequenceDb(prisma, SequenceSchema, SequencePartialSchema)
-    const sequenceEventsDb = new SequenceEventsDb(prisma, SequenceEventSchema)
-    const pinsDb = new PinDb(prisma, PinSchema, PinPartialSchema)
-    const cronDb = new CronDb(prisma, CronSchema, CronPartialSchema)
-    const cronSequenceLink = new CronSequenceLink(prisma, LinkArraySchema)
-    const adminDb = new AdminDb(prisma)
+    const sequenceDb = new JSONDb<BaseSequence['id'], BaseSequence>("database", "sequences", sequenceValidators, s => s.id)
+    const pinDb = new JSONDb<Pin['channel'], Pin>("database", "pins", pinsValidators, p => p.channel)
+    const cronDb = new JSONDb<BaseCron['id'], BaseCron>("database", "crons", cronValidators, s => s.id)
+    const adminDb = new JSONDb<Admin['username'], Admin>("database", "admin", {}, u => u.username)
+    const sequenceEventDb = new JSONDb<BaseSequenceEvent['id'], BaseSequenceEvent>("database", "sequencesEvents", sequenceEventsValidators, s => s.id)
+    const cronSequenceDb = new JSONDb<void, CronSequence>("database", "cronSequence", {}, s => s.sequenceId + s.cronId)
+
+    await Promise.all([
+        sequenceDb.init(),
+        pinDb.init(),
+        cronDb.init(),
+        adminDb.init(),
+        sequenceEventDb.init(),
+        cronSequenceDb.init()
+    ])
+
+    const sequenceCRUD = new SequenceCRUD(sequenceDb, cronDb, cronSequenceDb)
+    const cronCRUD = new CronCRUD(cronDb, sequenceDb, cronSequenceDb)
+    const cronSequenceLink = new CronSequenceLink(cronSequenceDb, sequenceCRUD, cronCRUD)
+    const pinCRUD = new PinCRUD(pinDb)
+    const adminCRUD = new AdminCRUD(adminDb)
+    const sequenceEventCRUD = new SequenceEventCRUD(sequenceEventDb, sequenceDb)
+
 
     return {
-        sequencesDb,
-        sequenceEventsDb,
-        pinsDb,
-        cronDb,
-        cronSequenceLink,
-        adminDb,
-        prisma,
+        sequenceCRUD,
+        pinCRUD,
+        cronCRUD,
+        adminCRUD,
+        sequenceEventCRUD,
+        cronSequenceLink
     }
 }
 
 
 
 export { initDb }
-export type { AppDB, SequenceDBType, PinDbType, CronDbType, SequenceEventDBType }
+export type { AppDB }
