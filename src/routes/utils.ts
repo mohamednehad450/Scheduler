@@ -2,10 +2,11 @@ import { compare } from 'bcrypt'
 import { Router, Handler } from 'express'
 import { sign, verify } from 'jsonwebtoken'
 import { AppDB } from '../db'
-import { DB, EventsDB, } from "../db/db"
+import { CRUD, EventCRUD, } from "../db/misc"
+import { BaseCron, BaseSequence } from '../db/types'
 
 
-export const CRUD = <K, T>(db: DB<K, T>, stringToKey: (s: string) => K) => {
+export const CRUDRouter = <K, T>(db: CRUD<K, T>, stringToKey: (s: string) => K) => {
 
     const router = Router()
     // List all objects
@@ -118,7 +119,7 @@ export const CRUD = <K, T>(db: DB<K, T>, stringToKey: (s: string) => K) => {
 
 
 
-export const Events = <K, T>(db: EventsDB<K, T>, stringToKey: (s: string) => K) => {
+export const EventRouter = <K, T>(db: EventCRUD<K, T>, stringToKey: (s: string) => K) => {
 
     const router = Router()
     // List all Events 
@@ -138,7 +139,7 @@ export const Events = <K, T>(db: EventsDB<K, T>, stringToKey: (s: string) => K) 
 
     // List Events by parameter
     router.get('/:id', (req, res) => {
-        db.listByObject(
+        db.listByEmitter(
             stringToKey(req.params.id),
             {
                 page: Number(req.query.page),
@@ -160,13 +161,8 @@ export const Events = <K, T>(db: EventsDB<K, T>, stringToKey: (s: string) => K) 
 
     // Delete Events by parameter
     router.delete("/:id", (req, res) => {
-        db.removeByObject(stringToKey(req.params.id))
-            .then((success) => {
-                if (!success) {
-                    res.status(404)
-                    res.json({ error: "NOT FOUND" })
-                    return
-                }
+        db.removeByEmitter(stringToKey(req.params.id))
+            .then(() => {
                 res.json()
             })
             .catch(err => {
@@ -191,7 +187,7 @@ export const Events = <K, T>(db: EventsDB<K, T>, stringToKey: (s: string) => K) 
 
 }
 
-export const cronSequenceLink = (db: AppDB['cronSequenceLink'], stringToKey: (s: string) => number) => {
+export const cronSequenceLink = (db: AppDB['cronSequenceLink'], stringToKey: (s: string) => BaseSequence['id'] | BaseCron['id']) => {
 
     const router = Router()
     // Link a Sequence to a list of crons
@@ -242,7 +238,7 @@ export const cronSequenceLink = (db: AppDB['cronSequenceLink'], stringToKey: (s:
 }
 
 
-export const authCRUD = (db: AppDB['adminDb']) => {
+export const authCRUD = (db: AppDB['adminCRUD']) => {
 
     const router = Router()
 
