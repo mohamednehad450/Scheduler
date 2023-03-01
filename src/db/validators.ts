@@ -1,21 +1,30 @@
 import Joi from "joi"
+import { v4 } from "uuid"
 import { config } from "../pi/utils"
 import { noOverlappingOrders, cronValidation } from "./customValidators"
+import { ObjectValidators } from "./misc"
+import { BaseCron, BaseSequence, BaseSequenceEvent, Pin, sequenceEventTypes } from "./types"
 
 const Channel = Joi.number().valid(...config.validPins)
 
-const PinSchema = Joi.object({
+const PinSchema = Joi.object<Pin>({
     label: Joi.string().required(),
     onState: Joi.string().valid('HIGH', 'LOW').required(),
     channel: Channel.required()
 })
-const PinPartialSchema = Joi.object({
+const PinPartialSchema = Joi.object<Partial<Pin>>({
     label: Joi.string(),
     onState: Joi.string().valid('HIGH', 'LOW'),
     channel: Channel
 })
 
-// Order doesn't have a partial schema because it's never updated 
+const pinsValidators: ObjectValidators<Pin> = {
+    loadValidator: PinSchema,
+    inputValidator: PinSchema,
+    updateValidator: PinPartialSchema
+}
+
+
 const OrderSchema = Joi.object({
     duration: Joi.number()
         .min(10)
@@ -32,46 +41,67 @@ const OrderListSchema = Joi.array()
     .custom(noOverlappingOrders)
     .messages({ noOverlappingOrders: "Orders with the same channel cannot overlap" })
 
+const UUID = Joi.string().uuid()
+
+const SequenceSchema = Joi.object<BaseSequence>({
+    id: UUID.default(() => v4()),
+    name: Joi.string().required(),
+    active: Joi.boolean().default(false),
+    orders: OrderListSchema.required(),
+    lastRun: Joi.string().isoDate(),
+})
+
+const SequencePartialSchema = Joi.object<Partial<BaseSequence>>({
+    id: UUID,
+    name: Joi.string(),
+    active: Joi.boolean(),
+    orders: OrderListSchema,
+    lastRun: Joi.string().isoDate(),
+})
+
+const sequenceValidators: ObjectValidators<BaseSequence> = {
+    loadValidator: SequenceSchema,
+    inputValidator: SequenceSchema,
+    updateValidator: SequencePartialSchema,
+}
+
 
 const CronString = Joi.string()
     .custom(cronValidation)
     .messages({ 'cronValidation': 'Invalid cron string' })
 
-const CronSchema = Joi.object({
+const CronSchema = Joi.object<BaseCron>({
+    id: UUID.default(() => v4()),
     cron: CronString.required(),
-    label: Joi.string().required()
+    label: Joi.string().required(),
 })
 
 const CronPartialSchema = Joi.object({
+    id: UUID,
     cron: CronString,
     label: Joi.string(),
 })
 
-
-
-const SequenceSchema = Joi.object({
-    name: Joi.string().required(),
-    active: Joi.boolean(),
-    orders: OrderListSchema.required(),
-    lastRun: Joi.date(),
-})
-
-const SequencePartialSchema = Joi.object({
-    name: Joi.string(),
-    active: Joi.boolean(),
-    orders: OrderListSchema,
-    lastRun: Joi.date(),
-})
-
-type SequenceEvent = "run" | 'stop' | 'finish' | 'activate' | 'deactivate'
-const sequenceEvents: SequenceEvent[] = ["run", 'stop', 'finish', 'activate', 'deactivate']
+const cronValidators: ObjectValidators<BaseCron> = {
+    loadValidator: CronSchema,
+    inputValidator: CronSchema,
+    updateValidator: CronPartialSchema
+}
 
 
 const SequenceEventSchema = Joi.object({
-    eventType: Joi.string().valid(...sequenceEvents).required(),
-    sequenceId: Joi.number().required(),
-    date: Joi.date().required(),
+    id: UUID.default(() => v4()),
+    eventType: Joi.string().valid(...sequenceEventTypes).required(),
+    sequenceId: UUID.required(),
+    date: Joi.string().isoDate().required(),
 })
+
+const sequenceEventsValidators: ObjectValidators<BaseSequenceEvent> = {
+    loadValidator: SequenceEventSchema,
+    inputValidator: SequenceEventSchema,
+}
+
+
 
 const UserSchema = Joi.object({
     username: Joi.string()
@@ -86,23 +116,11 @@ const UserSchema = Joi.object({
         .required()
 })
 
-const LinkArraySchema = Joi.array()
-    .items(
-        Joi.number()
-            .min(1)
-    )
-    .required()
-
 export {
-    SequenceSchema,
-    SequencePartialSchema,
-    PinSchema,
-    PinPartialSchema,
-    OrderSchema,
-    SequenceEventSchema,
-    CronSchema,
-    CronPartialSchema,
+    sequenceValidators,
+    pinsValidators,
+    cronValidators,
+    sequenceEventsValidators,
     UserSchema,
-    LinkArraySchema,
 }
 
