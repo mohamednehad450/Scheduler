@@ -1,31 +1,25 @@
 import EventEmitter from "events";
-import { PinDbType, SequenceDBType } from "../db";
+import { BaseSequence, Pin } from "../db/types";
 import { config, gpio } from "./utils";
 
 
-type RunnableSequence = {
-    id: SequenceDBType['id'],
-    name: SequenceDBType['name'],
-    orders: SequenceDBType['orders'],
-}
-
 interface GpioManager {
-    run: (data: RunnableSequence) => string | void
-    running: () => RunnableSequence['id'][]
-    stop: (id: RunnableSequence['id']) => Promise<void>
-    channelsStatus: () => Promise<{ [key: PinDbType['channel']]: boolean }>
-    getReservedPins: () => { pin: PinDbType, sequenceId: RunnableSequence['id'] }[]
+    run: (data: BaseSequence) => string | void
+    running: () => BaseSequence['id'][]
+    stop: (id: BaseSequence['id']) => Promise<void>
+    channelsStatus: () => Promise<{ [key: Pin['channel']]: boolean }>
+    getReservedPins: () => { pin: Pin, sequenceId: BaseSequence['id'] }[]
     cleanup?: () => Promise<void>
 }
 
 // Used to implement the 'Normally open pin state'
-const pState: { [key in PinDbType['onState']]: boolean } = {
+const pState: { [key in Pin['onState']]: boolean } = {
     HIGH: true,
     LOW: false,
 }
 
 type RunOrder = {
-    pin: PinDbType
+    pin: Pin
     startTimer: NodeJS.Timeout
     closeTimer: NodeJS.Timeout
 }
@@ -38,12 +32,12 @@ type SequenceOrder = {
 
 class PinManager extends EventEmitter implements GpioManager {
 
-    private pins: { [key: PinDbType['channel']]: PinDbType } = {}
+    private pins: { [key: Pin['channel']]: Pin } = {}
 
     // Map of reserved pins channels and the sequence ID
-    private reservedPins: { [key: PinDbType['channel']]: SequenceDBType['id'] } = {}
+    private reservedPins: { [key: Pin['channel']]: BaseSequence['id'] } = {}
 
-    private orders: { [key: SequenceDBType['id']]: SequenceOrder } = {}
+    private orders: { [key: BaseSequence['id']]: SequenceOrder } = {}
 
 
     constructor() {
@@ -51,7 +45,7 @@ class PinManager extends EventEmitter implements GpioManager {
     }
 
 
-    start = async (pins: PinDbType[]) => {
+    start = async (pins: Pin[]) => {
 
         const { boardMode } = config
         gpio.setMode(boardMode)
@@ -65,7 +59,7 @@ class PinManager extends EventEmitter implements GpioManager {
         }
 
         this.cleanup = async () => {
-            await Promise.resolve([...Object.keys(this.orders)].map((id) => this.stop(Number(id))))
+            await Promise.resolve([...Object.keys(this.orders)].map((id) => this.stop(id)))
             await gpio.promise.destroy().catch(console.error)
             this.pins = {}
             this.reservedPins = {}
@@ -77,7 +71,7 @@ class PinManager extends EventEmitter implements GpioManager {
     cleanup?: () => Promise<void> = undefined
 
     // New pin has been defined
-    insert = (pin: PinDbType) => {
+    insert = (pin: Pin) => {
         gpio.promise.setup(
             pin.channel,
             pin.onState === "LOW" ? gpio.DIR_HIGH : gpio.DIR_LOW)
@@ -86,23 +80,23 @@ class PinManager extends EventEmitter implements GpioManager {
 
 
     running = () => {
-        return [...Object.keys(this.orders)].map(Number)
+        return [...Object.keys(this.orders)]
     }
 
 
-    run = (sequence: RunnableSequence) => {
+    run = (sequence: BaseSequence) => {
         if (this.orders[sequence.id]) {
             this.emit('failed', 'run', `Sequence: ${sequence.name} is already running.`)
             return `Sequence: ${sequence.name} is already running.`
         }
         for (const order of sequence.orders) {
             if (this.reservedPins[order.channel]) {
-                this.emit('failed', 'run', `Pin: ${order.Pin.label} (channel: ${order.channel}) is reserved.`)
-                return `Pin: ${order.Pin.label} (channel: ${order.channel}) is reserved.`
+                this.emit('failed', 'run', `(channel: ${order.channel}) is reserved.`)
+                return `(channel: ${order.channel}) is reserved.`
             }
             if (!this.pins[order.channel]) {
-                this.emit('failed', 'run', `Pin: ${order.Pin.label} (channel: ${order.channel}) is not loaded, Reset PinManager.`)
-                return `Pin: ${order.Pin.label} (channel: ${order.channel}) is not loaded, Reset PinManager.`
+                this.emit('failed', 'run', `(channel: ${order.channel}) is not loaded, Reset PinManager.`)
+                return `(channel: ${order.channel}) is not loaded, Reset PinManager.`
             }
         }
 
@@ -147,21 +141,21 @@ class PinManager extends EventEmitter implements GpioManager {
     }
 
 
-    stop = async (id: SequenceDBType['id']) => {
+    stop = async (id: BaseSequence['id']) => {
 
         const seqOrder = this.orders[id]
         if (!seqOrder) {
             return
         }
 
-        const pins = new Map<PinDbType['channel'], PinDbType>()
+        const pins = new Map<Pin['channel'], Pin>()
         seqOrder.runOrders.forEach(({ startTimer, closeTimer, pin, }) => {
             clearTimeout(startTimer)
             clearTimeout(closeTimer)
             pins.set(pin.channel, pin)
             delete this.reservedPins[pin.channel]
         })
-        const status: { [key: PinDbType['channel']]: boolean } = {}
+        const status: { [key: Pin['channel']]: boolean } = {}
         clearTimeout(seqOrder.clearTimer);
         await Promise.resolve([...pins.values()].map((pin) => {
             status[pin.channel] = false
@@ -173,7 +167,7 @@ class PinManager extends EventEmitter implements GpioManager {
     };
 
     channelsStatus = async () => {
-        const status: { [key: PinDbType['channel']]: boolean } = {}
+        const status: { [key: Pin['channel']]: boolean } = {}
         for (const channel of [...Object.keys(this.pins)]) {
             const pin = this.pins[Number(channel)]
             const HIGH = await gpio.promise.read(pin.channel)
@@ -199,4 +193,3 @@ class PinManager extends EventEmitter implements GpioManager {
 }
 
 export default PinManager
-export { RunnableSequence }
