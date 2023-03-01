@@ -2,7 +2,7 @@ import EventEmitter from "events"
 import { ObjectSchema } from "joi"
 
 type Predict<T> = (item: T) => boolean
-type Compare<T> = (item: T) => number
+type Compare<T> = (itemA: T, itemB: T) => number
 type Pagination = {
     page?: number,
     perPage?: number,
@@ -16,7 +16,7 @@ type PageInfo = {
 type ObjectValidators<T> = {
     loadValidator?: ObjectSchema<T>
     inputValidator?: ObjectSchema<T>
-    updateValidator?: ObjectSchema<T>
+    updateValidator?: ObjectSchema<Partial<T>>
 }
 
 
@@ -31,6 +31,7 @@ interface Db<K, T> {
     deleteAll: () => Promise<void>
     count: () => Promise<number>
     countBy: (predict: Predict<T>) => Promise<number>
+    exists: (key: K) => Promise<boolean>
 }
 
 interface DbSync<K, T> {
@@ -44,6 +45,7 @@ interface DbSync<K, T> {
     deleteAll: () => void
     count: () => number
     countBy: (predict: Predict<T>) => number
+    exists: (key: K) => boolean
 }
 
 interface CRUD<K, T> extends EventEmitter {
@@ -55,7 +57,7 @@ interface CRUD<K, T> extends EventEmitter {
     list: (pagination?: Pagination) => Promise<T[]>
 }
 
-interface EventsCRUD<K, T> {
+interface EventCRUD<K, T> {
     emit: (obj: T) => Promise<T>
     get: (key: K) => Promise<T | null>
     remove: (key: K) => Promise<void>
@@ -75,5 +77,5 @@ export type {
     Db,
     DbSync,
     CRUD,
-    EventsCRUD,
+    EventCRUD,
 }
