@@ -3,6 +3,7 @@ import { ObjectSchema } from "joi"
 
 type Predict<T> = (item: T) => boolean
 type Compare<T> = (itemA: T, itemB: T) => number
+type Updater<T> = (item: T) => T
 type Pagination = {
     page?: number,
     perPage?: number,
@@ -23,6 +24,7 @@ type ObjectValidators<T> = {
 interface Db<K, T> {
     insert: (obj: T) => Promise<T>
     update: (id: K, obj: Partial<T>) => Promise<T | undefined>
+    updateBy: (predict: Predict<T>, updater: Updater<T>) => Promise<T[]>
     findByKey: (key: K) => Promise<T | undefined>
     findBy: (predict: Predict<T>, page?: Pagination) => Promise<T[]>
     findAll: (page?: Pagination) => Promise<T[]>
@@ -37,6 +39,7 @@ interface Db<K, T> {
 interface DbSync<K, T> {
     insert: (obj: T) => T
     update: (id: K, obj: Partial<T>) => T | undefined
+    updateBy: (predict: Predict<T>, updater: Updater<T>) => Promise<T[]>
     findByKey: (key: K) => T | undefined
     findBy: (predict: Predict<T>, pagination?: Pagination) => T[]
     findAll: (pagination?: Pagination) => T[]

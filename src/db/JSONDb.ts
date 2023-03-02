@@ -119,16 +119,42 @@ export default class JSONDb<K, T> implements Db<K, T>  {
 
         const updatedObject = { ...this.map.get(key), ...value } as T
 
-        // If key in updated, with an existing key
+        // If key is updated, with an existing key
         if (key !== this.keyExtractor(updatedObject) && this.map.has(this.keyExtractor(updatedObject))) throw new Error("Object Key already exists.")
 
-        // If key in updated
+        // If key is updated
         if (key !== this.keyExtractor(updatedObject)) this.map.delete(key)
 
         this.map.set(this.keyExtractor(updatedObject), updatedObject)
         this.save()
 
         return updatedObject as T
+    }
+
+    updateBy = async (predict: Predict<T>, updater: (item: T) => T) => {
+
+        const arr: T[] = []
+        for (const [key, val] of this.map) {
+
+            if (!predict(val)) continue
+
+            const updatedObject = updater(val)
+
+            // If key is updated, with an existing key
+            if (key !== this.keyExtractor(updatedObject) &&
+                this.map.has(this.keyExtractor(updatedObject))
+            ) continue
+
+            // If key is updated
+            if (key !== this.keyExtractor(updatedObject)) this.map.delete(key)
+
+            this.map.set(this.keyExtractor(updatedObject), updatedObject)
+            arr.push(updatedObject)
+
+
+        }
+        await this.save()
+        return arr
     }
 
     findAll = async (pagination?: Pagination) => {
