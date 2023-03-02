@@ -69,14 +69,14 @@ export default class JSONDb<K, T> implements Db<K, T>  {
     }
 
     private applyPagination = (list: T[], pagination?: Pagination): T[] => {
-        if (!pagination) return list.sort()
+        if (!pagination) return list
         const perPage = pagination.perPage || this.PER_PAGE
-        const page = pagination.page || 0
-        return list
-            .sort(pagination.sort)
+        const page = pagination.page || 1
+        const sorted = pagination.sort ? list.sort(pagination.sort) : list
+        return sorted
             .slice(
-                page * perPage,
-                (page * perPage) + perPage
+                (page - 1) * perPage,
+                (page * perPage)
             )
     }
 

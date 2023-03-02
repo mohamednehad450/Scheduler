@@ -1,9 +1,13 @@
 import JSONDb from "./JSONDb"
-import { EventCRUD, Pagination } from "./misc"
+import { Compare, EventCRUD, Pagination } from "./misc"
 import { BaseSequence, BaseSequenceEvent, SequenceEvent } from "./types"
 
 
-
+const sortbyDate: Compare<BaseSequenceEvent> = (a, b) => {
+    const d1 = Date.parse(a.date)
+    const d2 = Date.parse(b.date)
+    return d1 > d2 ? -1 : 1
+}
 
 export default class SequenceEventCRUD implements EventCRUD<SequenceEvent['id'], SequenceEvent> {
 
@@ -44,25 +48,36 @@ export default class SequenceEventCRUD implements EventCRUD<SequenceEvent['id'],
     removeByEmitter = (sequenceId: BaseSequence['id']) => this.db.deleteBy(e => e.sequenceId === sequenceId)
 
     listAll = async (pagination?: Pagination) => {
-        const events = (await this.db.findAll(pagination))
+        const events = (await this.db.findAll({
+            page: pagination?.page || 1,
+            perPage: pagination?.perPage,
+            sort: pagination?.sort || sortbyDate as Compare<unknown>
+        }))
             .map(this.getSequence)
         return {
             events: await Promise.all(events),
-            pageInfo: {
-                current: pagination?.page || 0,
-                perPage: pagination?.perPage || 20,
+            page: {
+                current: pagination?.page || 1,
+                perPage: pagination?.perPage || this.db.PER_PAGE,
                 total: await this.db.count(),
             }
         }
     }
 
     listByEmitter = async (sequenceId: BaseSequence['id'], pagination?: Pagination) => {
-        const events = (await this.db.findBy((e => e.sequenceId === sequenceId), pagination))
+        const events = (await this.db.findBy(
+            (e => e.sequenceId === sequenceId),
+            {
+                page: pagination?.page,
+                perPage: pagination?.perPage,
+                sort: pagination?.sort || sortbyDate as Compare<unknown>
+            }
+        ))
             .map(this.getSequence)
         return {
             events: await Promise.all(events),
-            pageInfo: {
-                current: pagination?.page || 0,
+            page: {
+                current: pagination?.page || 1,
                 perPage: pagination?.perPage || this.db.PER_PAGE,
                 total: await this.db.countBy(e => e.sequenceId === sequenceId),
             }

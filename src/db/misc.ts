@@ -66,8 +66,8 @@ interface EventCRUD<K, T> {
     remove: (key: K) => Promise<void>
     removeByEmitter: (emitterKey: any) => Promise<void>
     removeAll: () => Promise<void>
-    listAll: (pagination?: Pagination) => Promise<{ events: T[], pageInfo: PageInfo }>
-    listByEmitter: (emitterKey: any, pagination?: Pagination) => Promise<{ events: T[], pageInfo: PageInfo }>
+    listAll: (pagination?: Pagination) => Promise<{ events: T[], page: PageInfo }>
+    listByEmitter: (emitterKey: any, pagination?: Pagination) => Promise<{ events: T[], page: PageInfo }>
 }
 
 
