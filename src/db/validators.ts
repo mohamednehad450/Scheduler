@@ -52,7 +52,6 @@ const SequenceSchema = Joi.object<BaseSequence>({
 })
 
 const SequencePartialSchema = Joi.object<Partial<BaseSequence>>({
-    id: UUID,
     name: Joi.string(),
     active: Joi.boolean(),
     orders: OrderListSchema,
@@ -77,7 +76,6 @@ const CronSchema = Joi.object<BaseCron>({
 })
 
 const CronPartialSchema = Joi.object({
-    id: UUID,
     cron: CronString,
     label: Joi.string(),
 })
