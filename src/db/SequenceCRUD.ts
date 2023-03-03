@@ -53,8 +53,6 @@ class SequenceCRUD extends EventEmitter implements CRUD<Sequence['id'], Sequence
     }
 
     remove = async (id: Sequence['id']) => {
-        await this.cronSequenceDb.deleteBy(cs => cs.sequenceId === id)
-        await this.sequenceEventDb.deleteBy(e => e.sequenceId === id)
         return await this.db.deleteByKey(id)
     }
 

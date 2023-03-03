@@ -5,8 +5,9 @@ import AdminCRUD from "./AdminCRUD"
 import CronCRUD from "./CronCRUD"
 import PinCRUD from "./PinsCRUD"
 import JSONDb from "./JSONDb"
-import { Admin, BaseCron, BaseSequence, BaseSequenceEvent, CronSequence, Pin } from "./types"
 import CronSequenceLink from "./CronSequenceLink"
+import { cronCSLink, pinSequenceLink, sequenceCSLink, sequenceEventLink } from "./dbLinks"
+import { Admin, BaseCron, BaseSequence, BaseSequenceEvent, CronSequence, Pin } from "./types"
 
 type AppDB = {
     sequenceCRUD: SequenceCRUD,
@@ -25,6 +26,12 @@ const initDb = async (): Promise<AppDB> => {
     const adminDb = new JSONDb<Admin['username'], Admin>("database", "admin", {}, u => u.username)
     const sequenceEventDb = new JSONDb<BaseSequenceEvent['id'], BaseSequenceEvent>("database", "sequencesEvents", sequenceEventsValidators, s => s.id)
     const cronSequenceDb = new JSONDb<void, CronSequence>("database", "cronSequence", {}, s => s.sequenceId + s.cronId)
+
+
+    pinDb.linkForeignDb(pinSequenceLink(sequenceDb))
+    sequenceDb.linkForeignDb(sequenceEventLink(sequenceEventDb))
+    sequenceDb.linkForeignDb(sequenceCSLink(cronSequenceDb))
+    cronDb.linkForeignDb(cronCSLink(cronSequenceDb))
 
     await Promise.all([
         sequenceDb.init(),

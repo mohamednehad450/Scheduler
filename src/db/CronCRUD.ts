@@ -52,7 +52,6 @@ export default class CronCRUD extends EventEmitter implements CRUD<Cron['id'], C
     }
 
     remove = async (key: BaseCron['id']) => {
-        await this.cronSequenceDb.deleteBy(cs => cs.cronId === key)
         return await this.db.deleteByKey(key)
     }
 
