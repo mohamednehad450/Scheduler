@@ -8,6 +8,7 @@ import JSONDb from "./JSONDb"
 import CronSequenceLink from "./CronSequenceLink"
 import { cronCSLink, pinSequenceLink, sequenceCSLink, sequenceEventLink } from "./dbLinks"
 import { Admin, BaseCron, BaseSequence, BaseSequenceEvent, CronSequence, Pin } from "./types"
+import { channelsExistsValidator, cronExistsValidator, sequenceExistsValidator } from "./foreignKeysValidators"
 
 type AppDB = {
     sequenceCRUD: SequenceCRUD,
@@ -32,6 +33,17 @@ const initDb = async (): Promise<AppDB> => {
     sequenceDb.linkForeignDb(sequenceEventLink(sequenceEventDb))
     sequenceDb.linkForeignDb(sequenceCSLink(cronSequenceDb))
     cronDb.linkForeignDb(cronCSLink(cronSequenceDb))
+
+    const channelsValidator = channelsExistsValidator(pinDb)
+    sequenceDb.addForeignKeyValidator(s => channelsValidator(new Set(s.orders.map(o => o.channel))))
+
+    const sequenceValidator = sequenceExistsValidator(sequenceDb)
+    sequenceEventDb.addForeignKeyValidator((e) => sequenceValidator(e.sequenceId))
+    cronSequenceDb.addForeignKeyValidator(cs => sequenceValidator(cs.sequenceId))
+
+    const cronValidator = cronExistsValidator(cronDb)
+    cronSequenceDb.addForeignKeyValidator(cs => cronValidator(cs.cronId))
+
 
     await Promise.all([
         sequenceDb.init(),
