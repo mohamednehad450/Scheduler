@@ -15,6 +15,8 @@ export default class JSONDb<K, T> implements Db<K, T>  {
 
     foreignDbs: ForeignDbLink<K, T, any, any>[] = []
 
+    foreignKeysValidators: ((item: T) => Promise<void>)[] = []
+
     constructor(dir: string, filename: string, validators: ObjectValidators<T>, keyExtractor: (item: T) => K) {
         this.dir = dir
         this.filename = filename
@@ -108,8 +110,17 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         }))
     }
 
+    private validateForeignKeys = async (item: T) => {
+        await Promise.all(this.foreignKeysValidators.map(v => v(item)))
+        return item
+    }
+
     linkForeignDb = <FK, FT>(link: ForeignDbLink<K, T, FK, FT>) => {
         this.foreignDbs.push(link)
+    }
+
+    addForeignKeyValidator = (validator: (item: T) => Promise<void>) => {
+        this.foreignKeysValidators.push(validator)
     }
 
     insert = async (arg: T) => {
@@ -117,7 +128,7 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         if (!this.validators.inputValidator) {
             if (this.map.has(this.keyExtractor(arg))) throw new Error("Object already exists.")
 
-            this.map.set(this.keyExtractor(arg), arg)
+            this.map.set(this.keyExtractor(arg), await this.validateForeignKeys(arg))
             this.save()
             return arg as T
         }
@@ -127,7 +138,7 @@ export default class JSONDb<K, T> implements Db<K, T>  {
 
         if (this.map.has(this.keyExtractor(value))) throw new Error("Object already exists.")
 
-        this.map.set(this.keyExtractor(value), value)
+        this.map.set(this.keyExtractor(value), await this.validateForeignKeys(value))
         this.save()
         return value as T
     }
@@ -140,7 +151,7 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         if (!this.validators.updateValidator) {
             const updatedObject = { ...this.map.get(key), ...arg } as T
 
-            this.map.set(this.keyExtractor(updatedObject), updatedObject)
+            this.map.set(this.keyExtractor(updatedObject), await this.validateForeignKeys(updatedObject))
             this.save()
             return
         }
@@ -158,7 +169,7 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         // If key is updated
         if (oldKey) this.map.delete(key)
 
-        this.map.set(this.keyExtractor(updatedObject), updatedObject)
+        this.map.set(this.keyExtractor(updatedObject), await this.validateForeignKeys(updatedObject))
 
         await this.foreignDbsUpdate(updatedObject, oldKey)
 
@@ -188,7 +199,7 @@ export default class JSONDb<K, T> implements Db<K, T>  {
 
             await this.foreignDbsUpdate(updatedObject, oldKey)
 
-            this.map.set(this.keyExtractor(updatedObject), updatedObject)
+            this.map.set(this.keyExtractor(updatedObject), await this.validateForeignKeys(updatedObject))
             arr.push(updatedObject)
 
         }

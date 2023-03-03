@@ -35,6 +35,7 @@ type ForeignDbLink<K, T, FK, FT> = {
 
 interface Db<K, T> {
     linkForeignDb: <FK, FT>(link: ForeignDbLink<K, T, FK, FT>) => void
+    addForeignKeyValidator: (validator: (item: T) => Promise<void>) => void
     insert: (obj: T) => Promise<T>
     update: (id: K, obj: Partial<T>) => Promise<T | undefined>
     updateBy: (predict: Predict<T>, updater: Updater<T>) => Promise<T[]>
