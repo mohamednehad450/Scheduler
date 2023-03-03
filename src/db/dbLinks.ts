@@ -9,7 +9,7 @@ const pinSequenceLink: DbLinker<Pin['channel'], Pin, BaseSequence['id'], BaseSeq
     db,
     onDelete: (sequence, channel) => ({
         ...sequence,
-        orders: sequence.orders.filter(o => o.channel === channel)
+        orders: sequence.orders.filter(o => o.channel !== channel)
     }),
     onUpdate: (sequence, { channel }, oldChannel) => {
         if (!oldChannel) return sequence
