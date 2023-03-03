@@ -49,21 +49,6 @@ interface Db<K, T> {
     exists: (key: K) => Promise<boolean>
 }
 
-interface DbSync<K, T> {
-    insert: (obj: T) => T
-    update: (id: K, obj: Partial<T>) => T | undefined
-    updateBy: (predict: Predict<T>, updater: Updater<T>) => Promise<T[]>
-    findByKey: (key: K) => T | undefined
-    findBy: (predict: Predict<T>, pagination?: Pagination) => T[]
-    findAll: (pagination?: Pagination) => T[]
-    deleteBy: (predict: Predict<T>) => void
-    deleteByKey: (key: K) => void
-    deleteAll: () => void
-    count: () => number
-    countBy: (predict: Predict<T>) => number
-    exists: (key: K) => boolean
-}
-
 interface CRUD<K, T> extends EventEmitter {
     insert: (obj: any) => Promise<T>
     get: (id: K,) => Promise<T | undefined>
@@ -91,7 +76,6 @@ export type {
     Pagination,
     PageInfo,
     Db,
-    DbSync,
     CRUD,
     EventCRUD,
     ForeignDbLink
