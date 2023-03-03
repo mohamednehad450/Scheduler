@@ -8,20 +8,17 @@ import { CRUD } from "./misc";
 class SequenceCRUD extends EventEmitter implements CRUD<Sequence['id'], Sequence> {
 
     db: JSONDb<BaseSequence['id'], BaseSequence>
-    sequenceEventDb: JSONDb<BaseSequenceEvent['id'], BaseSequenceEvent>
     cronDb: JSONDb<BaseCron['id'], BaseCron>
     cronSequenceDb: JSONDb<void, CronSequence>
 
     constructor(
         db: JSONDb<BaseSequence['id'], BaseSequence>,
-        sequenceEventDb: JSONDb<BaseSequenceEvent['id'], BaseSequenceEvent>,
         cronDb: JSONDb<BaseCron['id'], BaseCron>,
         cronSequenceDb: JSONDb<void, CronSequence>
 
     ) {
         super()
         this.db = db
-        this.sequenceEventDb = sequenceEventDb
         this.cronDb = cronDb
         this.cronSequenceDb = cronSequenceDb
     }

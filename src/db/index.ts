@@ -54,7 +54,7 @@ const initDb = async (): Promise<AppDB> => {
         cronSequenceDb.init()
     ])
 
-    const sequenceCRUD = new SequenceCRUD(sequenceDb, sequenceEventDb, cronDb, cronSequenceDb)
+    const sequenceCRUD = new SequenceCRUD(sequenceDb, cronDb, cronSequenceDb)
     const cronCRUD = new CronCRUD(cronDb, sequenceDb, cronSequenceDb)
     const cronSequenceLink = new CronSequenceLink(cronSequenceDb, sequenceCRUD, cronCRUD)
     const pinCRUD = new PinCRUD(pinDb, sequenceCRUD)
