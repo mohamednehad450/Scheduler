@@ -21,7 +21,20 @@ type ObjectValidators<T> = {
 }
 
 
+type ForeignDbLink<K, T, FK, FT> = {
+    db: Db<FK, FT>,
+    predict: Predict<{
+        foreignItem: FT,
+        key: K
+        oldKey?: K
+    }>
+    onUpdate?: (foreignItem: FT, item: T, oldKey?: K) => FT
+    onDelete?: "CASCADE" | ((ForeignItem: FT, key: K) => FT)
+}
+
+
 interface Db<K, T> {
+    linkForeignDb: <FK, FT>(link: ForeignDbLink<K, T, FK, FT>) => void
     insert: (obj: T) => Promise<T>
     update: (id: K, obj: Partial<T>) => Promise<T | undefined>
     updateBy: (predict: Predict<T>, updater: Updater<T>) => Promise<T[]>
@@ -81,4 +94,5 @@ export type {
     DbSync,
     CRUD,
     EventCRUD,
+    ForeignDbLink
 }

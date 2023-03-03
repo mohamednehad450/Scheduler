@@ -1,6 +1,6 @@
 import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { Db, ObjectValidators, Pagination, Predict } from './misc';
+import { Db, ForeignDbLink, ObjectValidators, Pagination, Predict } from './misc';
 
 
 export default class JSONDb<K, T> implements Db<K, T>  {
@@ -12,6 +12,8 @@ export default class JSONDb<K, T> implements Db<K, T>  {
 
     validators: ObjectValidators<T>
     keyExtractor: (item: T) => K
+
+    foreignDbs: ForeignDbLink<K, T, any, any>[] = []
 
     constructor(dir: string, filename: string, validators: ObjectValidators<T>, keyExtractor: (item: T) => K) {
         this.dir = dir
@@ -80,6 +82,35 @@ export default class JSONDb<K, T> implements Db<K, T>  {
             )
     }
 
+    private foreignDbsUpdate = async (updatedObject: T, oldKey?: K) => {
+        await Promise.all(this.foreignDbs.map(({ db, onUpdate, predict }) => {
+            if (!onUpdate) return
+            db.updateBy(
+                (foreignItem) => predict({ foreignItem, key: this.keyExtractor(updatedObject), oldKey }),
+                (foreignItem) => onUpdate(
+                    foreignItem,
+                    updatedObject,
+                    oldKey
+                ))
+        }))
+    }
+
+    private foreignDbsDelete = async (key: K) => {
+        await Promise.all(this.foreignDbs.map(({ db, onDelete, predict }) => {
+            if (!onDelete) return
+            if (onDelete === "CASCADE") {
+                return db.deleteBy((foreignItem) => predict({ foreignItem, key }),)
+            }
+            return db.updateBy(
+                (foreignItem) => predict({ foreignItem, key }),
+                (foreignItem) => onDelete(foreignItem, key)
+            )
+        }))
+    }
+
+    linkForeignDb = <FK, FT>(link: ForeignDbLink<K, T, FK, FT>) => {
+        this.foreignDbs.push(link)
+    }
 
     insert = async (arg: T) => {
 
@@ -122,10 +153,15 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         // If key is updated, with an existing key
         if (key !== this.keyExtractor(updatedObject) && this.map.has(this.keyExtractor(updatedObject))) throw new Error("Object Key already exists.")
 
+        const oldKey = key !== this.keyExtractor(updatedObject) ? key : undefined
+
         // If key is updated
-        if (key !== this.keyExtractor(updatedObject)) this.map.delete(key)
+        if (oldKey) this.map.delete(key)
 
         this.map.set(this.keyExtractor(updatedObject), updatedObject)
+
+        await this.foreignDbsUpdate(updatedObject, oldKey)
+
         this.save()
 
         return updatedObject as T
@@ -145,12 +181,15 @@ export default class JSONDb<K, T> implements Db<K, T>  {
                 this.map.has(this.keyExtractor(updatedObject))
             ) continue
 
+            const oldKey = key !== this.keyExtractor(updatedObject) ? key : undefined
+
             // If key is updated
-            if (key !== this.keyExtractor(updatedObject)) this.map.delete(key)
+            if (oldKey) this.map.delete(key)
+
+            await this.foreignDbsUpdate(updatedObject, oldKey)
 
             this.map.set(this.keyExtractor(updatedObject), updatedObject)
             arr.push(updatedObject)
-
 
         }
         await this.save()
@@ -173,17 +212,22 @@ export default class JSONDb<K, T> implements Db<K, T>  {
     deleteByKey = async (key: K) => {
         if (!this.map.has(key)) return
         this.map.delete(key)
+        await this.foreignDbsDelete(key)
         await this.save()
     }
 
     deleteBy = async (predict: Predict<T>) => {
         for (const [key, val] of this.map) {
             if (predict(val)) this.map.delete(key)
+            await this.foreignDbsDelete(key)
         }
         return this.save()
     }
 
     deleteAll = async () => {
+        for (const key of this.map.keys()) {
+            await this.foreignDbsDelete(key)
+        }
         this.map.clear()
         return this.save()
     }
