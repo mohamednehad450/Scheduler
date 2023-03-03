@@ -37,7 +37,6 @@ const OrderSchema = Joi.object({
 
 const OrderListSchema = Joi.array()
     .items(OrderSchema)
-    .min(1)
     .custom(noOverlappingOrders)
     .messages({ noOverlappingOrders: "Orders with the same channel cannot overlap" })
 
@@ -47,7 +46,7 @@ const SequenceSchema = Joi.object<BaseSequence>({
     id: UUID.default(() => v4()),
     name: Joi.string().required(),
     active: Joi.boolean().default(false),
-    orders: OrderListSchema.required(),
+    orders: OrderListSchema.default([]),
     lastRun: Joi.string().isoDate(),
 })
 
