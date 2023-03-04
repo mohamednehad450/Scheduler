@@ -36,7 +36,9 @@ class SequenceCRUD extends EventEmitter implements CRUD<Sequence['id'], Sequence
 
     insert = async (arg: any) => {
         const base = await this.db.insert(arg)
-        return await this.getCrons(base)
+        const results = await this.getCrons(base)
+        this.emit("insert", results)
+        return results
     }
 
     getBase = async (id: Sequence['id']) => {
@@ -50,7 +52,9 @@ class SequenceCRUD extends EventEmitter implements CRUD<Sequence['id'], Sequence
     }
 
     remove = async (id: Sequence['id']) => {
-        return await this.db.deleteByKey(id)
+        if (!await this.db.exists(id)) return
+        await this.db.deleteByKey(id)
+        this.emit('remove', id)
     }
 
     list = async () => {
@@ -61,7 +65,9 @@ class SequenceCRUD extends EventEmitter implements CRUD<Sequence['id'], Sequence
     update = async (id: Sequence['id'], arg: any) => {
         const base = await this.db.update(id, arg)
         if (!base) return
-        return await this.getCrons(base)
+        const results = await this.getCrons(base)
+        this.emit('update', results)
+        return results
     }
 
     set = this.update

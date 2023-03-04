@@ -37,7 +37,9 @@ export default class CronCRUD extends EventEmitter implements CRUD<Cron['id'], C
 
     insert = async (arg: any) => {
         const base = await this.db.insert(arg)
-        return this.getSequences(base)
+        const results = await this.getSequences(base)
+        this.emit("insert", results)
+        return results
     };
 
 
@@ -52,7 +54,9 @@ export default class CronCRUD extends EventEmitter implements CRUD<Cron['id'], C
     }
 
     remove = async (key: BaseCron['id']) => {
-        return await this.db.deleteByKey(key)
+        if (!await this.db.exists(key)) return
+        await this.db.deleteByKey(key)
+        this.emit('remove', key)
     }
 
     list = async () => {
@@ -63,7 +67,9 @@ export default class CronCRUD extends EventEmitter implements CRUD<Cron['id'], C
     set = async (id: BaseCron['id'], arg: any) => {
         const base = await this.db.update(id, arg)
         if (!base) return
-        return await this.getSequences(base)
+        const results = await this.getSequences(base)
+        this.emit('update', results)
+        return results
     }
 
     update = this.set
