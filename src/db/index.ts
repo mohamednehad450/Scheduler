@@ -19,14 +19,16 @@ type AppDB = {
     cronSequenceLink: CronSequenceLink
 }
 
+const dbFolder = process.env.DATABASE_FOLDER || "database"
+
 const initDb = async (): Promise<AppDB> => {
 
-    const sequenceDb = new JSONDb<BaseSequence['id'], BaseSequence>("database", "sequences", sequenceValidators, s => s.id)
-    const pinDb = new JSONDb<Pin['channel'], Pin>("database", "pins", pinsValidators, p => p.channel)
-    const cronDb = new JSONDb<BaseCron['id'], BaseCron>("database", "crons", cronValidators, s => s.id)
-    const adminDb = new JSONDb<Admin['username'], Admin>("database", "admin", {}, u => u.username)
-    const sequenceEventDb = new JSONDb<BaseSequenceEvent['id'], BaseSequenceEvent>("database", "sequencesEvents", sequenceEventsValidators, s => s.id)
-    const cronSequenceDb = new JSONDb<void, CronSequence>("database", "cronSequence", {}, s => s.sequenceId + s.cronId)
+    const sequenceDb = new JSONDb<BaseSequence['id'], BaseSequence>(dbFolder, "sequences", sequenceValidators, s => s.id)
+    const pinDb = new JSONDb<Pin['channel'], Pin>(dbFolder, "pins", pinsValidators, p => p.channel)
+    const cronDb = new JSONDb<BaseCron['id'], BaseCron>(dbFolder, "crons", cronValidators, s => s.id)
+    const adminDb = new JSONDb<Admin['username'], Admin>(dbFolder, "admin", {}, u => u.username)
+    const sequenceEventDb = new JSONDb<BaseSequenceEvent['id'], BaseSequenceEvent>(dbFolder, "sequencesEvents", sequenceEventsValidators, s => s.id)
+    const cronSequenceDb = new JSONDb<void, CronSequence>(dbFolder, "cronSequence", {}, s => s.sequenceId + s.cronId)
 
 
     pinDb.linkForeignDb(pinSequenceLink(sequenceDb))
