@@ -44,8 +44,8 @@ components:
       description: "A Cron object with linked sequences"
       properties:
         id:
-          type: integer
-          minimum: 1
+          type: string
+          format: uuid
           readOnly: true
         label:
           type: string
@@ -55,22 +55,21 @@ components:
           type: string
           description: "A valid cron expression"
           example: "* * * * * *"
-        CronSequence:
-          type: object
+        sequences:
+          type: array
           description: "A list of all linked sequences"
           readOnly: true
-          properties:
-            sequence:
-              type: object
-              properties:
-                id:
-                  type: integer
-                  minimum: 1
-                name:
-                  type: string
-                  example: "Light show 1"
-                active:
-                  type: boolean
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              name:
+                type: string
+                example: "Light show 1"
+              active:
+                type: boolean
       required:
         - label
         - cron
@@ -112,13 +111,6 @@ components:
           type: integer
           description: "Wait time before running in millisecond"
           minimum: 0
-        Pin:
-          type: object
-          description: "Channel Pin label"
-          readOnly: true
-          properties:
-            label:
-              type: string
       required:
         - duration
         - offset
@@ -130,8 +122,8 @@ components:
       description: "A Sequence object"
       properties:
         id:
-          type: integer
-          minimum: 1
+          type: string
+          format: uuid
           readOnly: true
         name:
           type: string
@@ -151,63 +143,46 @@ components:
           type: array
           description: "A list of all the Sequence orders with no overlap on the same channel"
           example:
-            - {
-                channel: 3,
-                offset: 0,
-                duration: 1500,
-                Pin: { label: "Relay 1" },
-              }
-            - {
-                channel: 7,
-                offset: 0,
-                duration: 1500,
-                Pin: { label: "Relay 3" },
-              }
-            - {
-                channel: 3,
-                offset: 1600,
-                duration: 100,
-                Pin: { label: "Relay 1" },
-              }
-            - {
-                channel: 5,
-                offset: 0,
-                duration: 1700,
-                Pin: { label: "Relay 2" },
-              }
-          minItems: 1
+            - { channel: 3, offset: 0, duration: 1500 }
+            - { channel: 7, offset: 0, duration: 1500 }
+            - { channel: 3, offset: 1600, duration: 100 }
+            - { channel: 5, offset: 0, duration: 1700 }
           items:
             $ref: "#/components/schemas/Order"
-        CronSequence:
-          type: object
+        crons:
+          type: array
           description: "A list of all linked Cron to the Sequence"
           readOnly: true
-          properties:
-            cron:
-              type: object
-              properties:
-                id:
-                  type: integer
-                  minimum: 1
-                label:
-                  type: string
-                  description: "The Cron expression label"
-                  example: "Every 3 minutes"
-                cron:
-                  type: string
-                  description: "A valid cron expression"
-                  example: "* * * * * *"
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                format: uuid
+              label:
+                type: string
+                description: "The Cron expression label"
+                example: "Every 3 minutes"
+              cron:
+                type: string
+                description: "A valid cron expression"
+                example: "* * * * * *"
       required:
         - "name"
-        - "orders"
       example:
-        id: 1
+        id: 7ea1ed90-70f9-4d7b-9384-03fcdce777a7
         name: "Sequence 1"
         orders: [{ duration: 1000, offset: 0, channel: 3 }]
         active: true
         lastRun: null
-        CronSequence:
-          [{ cron: { id: 1, cron: "* * * * * *", label: "Every second" } }]
+        crons:
+          [
+            {
+              id: 283bec69-af44-4b71-9bf8-06329a47f84f,
+              cron: "* * * * * *",
+              label: "Every second",
+            },
+          ]
 
     SequenceEvent:
       # Definition of a "SequenceEvent" object
@@ -215,11 +190,11 @@ components:
       description: "A SequenceEvent object"
       properties:
         id:
-          type: integer
-          minimum: 1
+          type: string
+          format: uuid
         sequenceId:
-          type: integer
-          minimum: 1
+          type: string
+          format: uuid
         date:
           type: string
           description: "The event date"
@@ -240,9 +215,9 @@ components:
             name:
               type: string
       example:
-        id: 1
+        id: 7ea1ed90-70f9-4d7b-9384-03fcdce777a7
         date: "2022-12-31T22:00:00.000Z"
-        sequenceId: 1
+        sequenceId: 283bec69-af44-4b71-9bf8-06329a47f84f
         eventType: "run"
         sequence: { name: "Sequence 1" }
 
@@ -254,8 +229,13 @@ components:
           type: array
           description: "A list of all running sequences IDs"
           items:
-            type: integer
-          example: [1, 2, 3]
+            type: string
+            format: uuid
+          example:
+            [
+              283bec69-af44-4b71-9bf8-06329a47f84f,
+              7ea1ed90-70f9-4d7b-9384-03fcdce777a7,
+            ]
         reservedPins:
           type: array
           description: "A list of all reserved pins"
@@ -265,7 +245,8 @@ components:
               pin:
                 $ref: "#/components/schemas/Pin"
               sequenceId:
-                type: integer
+                type: string
+                format: uuid
                 description: "The sequence reserving this pin"
         channelsStatus:
           type: object
@@ -367,6 +348,7 @@ paths:
           required: true
           schema:
             type: string
+            format: uuid
       responses:
         "200":
           description: "The requested sequence"
@@ -393,6 +375,7 @@ paths:
           required: true
           schema:
             type: string
+            format: uuid
       requestBody:
         description: New Sequence data to update
         required: true
@@ -446,6 +429,7 @@ paths:
           required: true
           schema:
             type: string
+            format: uuid
       requestBody:
         description: Partial Sequence data to update
         required: true
@@ -491,6 +475,7 @@ paths:
           required: true
           schema:
             type: string
+            format: uuid
       responses:
         "200":
           description: "Sequence successfully removed"
@@ -736,6 +721,7 @@ paths:
           required: true
           schema:
             type: string
+            format: uuid
       responses:
         "200":
           description: "The requested Cron"
@@ -762,6 +748,7 @@ paths:
           required: true
           schema:
             type: string
+            format: uuid
       requestBody:
         description: New Cron data to update
         required: true
@@ -800,6 +787,7 @@ paths:
           required: true
           schema:
             type: string
+            format: uuid
       requestBody:
         description: Partial Cron data to update
         required: true
@@ -831,6 +819,7 @@ paths:
           required: true
           schema:
             type: string
+            format: uuid
       responses:
         "200":
           description: "Cron successfully removed"
@@ -916,6 +905,7 @@ paths:
           description: "The ID of the Sequence"
           schema:
             type: string
+            format: uuid
         - name: perPage
           in: query
           required: false
@@ -973,6 +963,7 @@ paths:
           description: "The ID of the Sequence"
           schema:
             type: string
+            format: uuid
       responses:
         "200":
           description: "Events deleted successfully"
@@ -996,6 +987,7 @@ paths:
           required: true
           schema:
             type: string
+            format: uuid
       requestBody:
         description: "A list of Cron IDs to link the sequence to"
         required: true
@@ -1004,8 +996,9 @@ paths:
             schema:
               type: array
               items:
-                type: integer
-            example: [1]
+                type: string
+                format: uuid
+            example: [283bec69-af44-4b71-9bf8-06329a47f84f]
       responses:
         "200":
           description: "Crons linked successfully"
@@ -1035,6 +1028,7 @@ paths:
           required: true
           schema:
             type: string
+            format: uuid
       requestBody:
         description: "A list of Sequence IDs to link the cron to"
         required: true
@@ -1043,8 +1037,9 @@ paths:
             schema:
               type: array
               items:
-                type: integer
-            example: [1]
+                type: string
+                format: uuid
+            example: [283bec69-af44-4b71-9bf8-06329a47f84f]
       responses:
         "200":
           description: "Sequences linked successfully"
@@ -1176,6 +1171,7 @@ paths:
           required: true
           schema:
             type: string
+            format: uuid
       responses:
         "200":
           description: "Sequence ran successfully"
@@ -1217,6 +1213,7 @@ paths:
           required: true
           schema:
             type: string
+            format: uuid
       responses:
         "200":
           description: "Sequence sopped successfully"
