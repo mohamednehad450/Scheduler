@@ -1,17 +1,17 @@
 import { CronJob } from "cron"
-import { CronDbType } from "../db"
+import { BaseCron } from "../db/types"
 
 
 class CronManager {
 
     jobs: {
-        [key: CronDbType['id']]:
+        [key: BaseCron['id']]:
         { cron: string, job: CronJob }
     } = {}
-    callback: (id: CronDbType['id']) => void
+    callback: (id: BaseCron['id']) => void
 
 
-    constructor(crons: { id: CronDbType['id'], cron: CronDbType['cron'] }[], callback: (id: CronDbType['id']) => void) {
+    constructor(crons: { id: BaseCron['id'], cron: BaseCron['cron'] }[], callback: (id: BaseCron['id']) => void) {
         this.callback = callback
         this.jobs = crons.reduce((acc, { id, cron }) => {
             const job = new CronJob(cron, () => this.callback(id))
@@ -31,7 +31,7 @@ class CronManager {
     }
 
 
-    start = (id: CronDbType['id']) => {
+    start = (id: BaseCron['id']) => {
         if (!this.jobs[id]) return
         this.jobs[id].job.start()
     }
@@ -42,13 +42,13 @@ class CronManager {
     }
 
 
-    stop = (id: CronDbType['id']) => {
+    stop = (id: BaseCron['id']) => {
         if (!this.jobs[id]) return
         this.jobs[id].job.stop()
     }
 
 
-    insert = (id: CronDbType['id'], cron: CronDbType['cron']) => {
+    insert = (id: BaseCron['id'], cron: BaseCron['cron']) => {
         if (this.jobs[id]) return
         const job = {
             cron,
@@ -58,13 +58,13 @@ class CronManager {
     }
 
 
-    remove = (id: CronDbType['id']) => {
+    remove = (id: BaseCron['id']) => {
         this.stop(id)
         delete this.jobs[id]
     }
 
 
-    update = (id: CronDbType['id'], cron: CronDbType['cron']) => {
+    update = (id: BaseCron['id'], cron: BaseCron['cron']) => {
         if (!this.jobs[id]) return
         const job = this.jobs[id]
 

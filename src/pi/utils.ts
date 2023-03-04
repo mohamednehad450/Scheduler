@@ -1,7 +1,7 @@
-import { AppDB, CronDbType, SequenceDBType } from "../db";
-import PinManager, { RunnableSequence } from "./PinManager";
+import { AppDB } from "../db";
+import { BaseSequence, Cron, } from '../db/types'
+import PinManager from "./PinManager";
 import gpio from 'rpi-gpio'
-import { sequenceInclude } from "../db/sequenceDb";
 
 type GpioConfig = {
     validPins: number[],
@@ -41,48 +41,43 @@ const config: GpioConfig = {
 }
 
 
-const triggerCron = (id: CronDbType['id'], db: AppDB, pm: PinManager) => {
-
-    db.prisma.sequence.findMany({
-        where: { CronSequence: { some: { cronId: id }, }, active: true },
-        include: { orders: { include: { Pin: { select: { label: true } } } } },
-        orderBy: { lastRun: 'asc' }
-    })
+const triggerCron = (cronId: Cron['id'], db: AppDB, pm: PinManager) => {
+    // TODO : Sort by lastRun
+    db.cronSequenceLink.db.findBy(cs => cs.cronId === cronId)
+        .then(cronSequences => {
+            return Promise.all(cronSequences.map(cs => db.sequenceCRUD.db.findByKey(cs.sequenceId)))
+        })
         .then(sequences => {
-            const updates: any = sequences.map(s => runSequence(s, pm, db)).filter(u => !(typeof u === "string"))
-            return db.prisma.$transaction(updates)
+            const shouldRun = sequences.filter(s => s && s.active) as BaseSequence[]
+            const running = shouldRun.map(s => runSequence(s, pm, db)).filter(result => !(typeof result === 'string'))
+            return Promise.all(running)
         })
         .catch(err => {
-            console.error(`Failed to trigger Cronjob (id:${id}), database error`, err)
+            console.error(`Failed to trigger Cronjob (id:${cronId}), database error`, err)
             // TODO
         })
 }
 
-const runSequence = (s: RunnableSequence, pm: PinManager, db: AppDB) => {
+const runSequence = (s: BaseSequence, pm: PinManager, db: AppDB) => {
     const err = pm.run(s)
     if (err) return err
-    const lastRun = new Date()
-    return db.prisma.sequence.update({
-        where: { id: s.id },
-        data: { lastRun },
-        include: sequenceInclude,
-    })
+    return db.sequenceCRUD.update(s.id, { lastRun: new Date().toISOString() })
 }
 
-const activationLogger = (initialStatus: { [key: SequenceDBType['id']]: boolean }, db: AppDB) => {
+const activationLogger = (initialStatus: { [key: BaseSequence['id']]: boolean }, db: AppDB) => {
     const status = initialStatus
-    const updater = async (seq: SequenceDBType) => {
+    const updater = async (seq: BaseSequence) => {
         if (seq.active !== status[seq.id]) {
             status[seq.id] = seq.active
-            await db.sequenceEventsDb.emit({
+            await db.sequenceEventCRUD.emit({
                 eventType: seq.active ? "activate" : "deactivate",
                 sequenceId: seq.id,
-                date: new Date()
+                date: new Date().toISOString()
             })
         }
     }
-    db.sequencesDb.addListener('update', updater)
-    return () => db.sequencesDb.removeListener('update', updater)
+    db.sequenceCRUD.addListener('update', updater)
+    return () => db.sequenceCRUD.removeListener('update', updater)
 }
 
 

@@ -42,9 +42,9 @@ export default async (io: Server, db: AppDB) => {
 
     // Run sequence
     router.post("/run/:id", (req, res) => {
-        scheduler.run(Number(req.params.id) || -1)
+        scheduler.run(req.params.id)
             .then(async (s) => {
-                if (s === null) {
+                if (!s) {
                     res.status(404)
                     res.json({ error: "NOT FOUND" })
                     return
@@ -70,7 +70,7 @@ export default async (io: Server, db: AppDB) => {
 
     // Stop sequence
     router.post("/stop/:id", (req, res) => {
-        scheduler.stop(Number(req.params.id) || -1)
+        scheduler.stop(req.params.id)
             .then(getState)
             .then((s) => res.json(s))
             .catch(err => {
