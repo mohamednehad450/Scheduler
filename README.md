@@ -54,7 +54,7 @@
 #### Download from DockerHub
 1. Create the container 
     ```
-    docker container create --name scheduler_container -p 8000:8000 -v /sys:/sys -e TOKEN_KEY=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 50) -e DATABASE_FOLDER=database mohamednehad450/scheduler:1.0
+    docker container create --name scheduler_container -p 8000:8000 -v /sys:/sys -e TOKEN_KEY=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 50) -e DATABASE_FOLDER=database mohamednehad450/scheduler:1.1
     ```
 2. Start the container
     ```
@@ -102,5 +102,5 @@
 
 ## API docs
 
- All of the API documentation and database models are in `api-docs.yaml`,you can view it in [SwaggerHub](https://app.swaggerhub.com/apis/mohamednehad450/Scheduler/1.0#/).
+ All of the API documentation and database models are in `api-docs.yaml`,you can view it in [SwaggerHub](https://app.swaggerhub.com/apis/mohamednehad450/Scheduler/1.1#).
 
