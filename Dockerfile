@@ -9,13 +9,11 @@ RUN npx yarn install
 
 COPY . .
 
-RUN npx yarn prisma generate
-
 RUN npx yarn build
 
-ENV DATABASE_URL="file:db.db"
+ENV DATABASE_FOLDER="database"
 
-VOLUME ["/server/prisma"]
+VOLUME ["/server/database"]
 
 EXPOSE 8000
 
