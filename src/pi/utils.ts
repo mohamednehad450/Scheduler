@@ -2,6 +2,7 @@ import { AppDB } from "../db";
 import { BaseSequence, Cron, } from '../db/types'
 import PinManager from "./PinManager";
 import gpio from 'rpi-gpio'
+import { date } from "joi";
 
 type GpioConfig = {
     validPins: number[],
@@ -42,19 +43,23 @@ const config: GpioConfig = {
 
 
 const triggerCron = (cronId: Cron['id'], db: AppDB, pm: PinManager) => {
-    // TODO : Sort by lastRun
     db.cronSequenceLink.db.findBy(cs => cs.cronId === cronId)
         .then(cronSequences => {
             return Promise.all(cronSequences.map(cs => db.sequenceCRUD.db.findByKey(cs.sequenceId)))
         })
         .then(sequences => {
             const shouldRun = sequences.filter(s => s && s.active) as BaseSequence[]
+            shouldRun.sort((s1, s2) => {
+                if (!s1.lastRun && s2.lastRun) return 0
+                if (!s1.lastRun) return 1
+                if (!s2.lastRun) return -1
+                return Date.parse(s1.lastRun) > Date.parse(s2.lastRun) ? 1 : -1
+            })
             const running = shouldRun.map(s => runSequence(s, pm, db)).filter(result => !(typeof result === 'string'))
             return Promise.all(running)
         })
         .catch(err => {
             console.error(`Failed to trigger Cronjob (id:${cronId}), database error`, err)
-            // TODO
         })
 }
 
@@ -100,13 +105,13 @@ if (process.env.NODE_ENV === 'development') {
     gpio.setMode = (...args) => logArgs('setMode', args)
 
     gpio.promise.read = async (c, ...args) => {
-        logArgs('read', c, ...args)
+        // logArgs('read', c, ...args)
         return !!channelState.get(c)
     }
 
     gpio.promise.write = async (c, bool, ...args) => {
         channelState.set(c, bool)
-        logArgs('write', c, bool, args)
+        // logArgs('write', c, bool, args)
         gpio.emit('change', c, bool)
     }
 }
