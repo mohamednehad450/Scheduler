@@ -30,6 +30,11 @@ const initDb = async (): Promise<AppDB> => {
     const sequenceEventDb = new JSONDb<BaseSequenceEvent['id'], BaseSequenceEvent>(dbFolder, "sequencesEvents", sequenceEventsValidators, s => s.id)
     const cronSequenceDb = new JSONDb<void, CronSequence>(dbFolder, "cronSequence", {}, s => s.sequenceId + s.cronId)
 
+    sequenceDb.setDefaultSort((s1, s2) => s1.name > s2.name ? 1 : -1)
+    pinDb.setDefaultSort((p1, p2) => p1.channel > p2.channel ? 1 : -1)
+    cronDb.setDefaultSort((c1, c2) => c1.label > c2.label ? 1 : -1)
+    sequenceEventDb.setDefaultSort((e1, e2) => Date.parse(e1.date) > Date.parse(e2.date) ? -1 : 1)
+
 
     pinDb.linkForeignDb(pinSequenceLink(sequenceDb))
     sequenceDb.linkForeignDb(sequenceEventLink(sequenceEventDb))
