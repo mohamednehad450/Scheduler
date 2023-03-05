@@ -34,6 +34,7 @@ type ForeignDbLink<K, T, FK, FT> = {
 
 
 interface Db<K, T> {
+    setDefaultSort: (sort?: Compare<T>) => void
     linkForeignDb: <FK, FT>(link: ForeignDbLink<K, T, FK, FT>) => void
     addForeignKeyValidator: (validator: (item: T) => Promise<void>) => void
     insert: (obj: T) => Promise<T>

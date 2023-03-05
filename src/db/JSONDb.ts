@@ -1,6 +1,6 @@
 import { readFile, mkdir, writeFile } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { Db, ForeignDbLink, ObjectValidators, Pagination, Predict } from './misc';
+import { Db, ForeignDbLink, ObjectValidators, Pagination, Predict, Compare } from './misc';
 
 
 export default class JSONDb<K, T> implements Db<K, T>  {
@@ -16,6 +16,8 @@ export default class JSONDb<K, T> implements Db<K, T>  {
     foreignDbs: ForeignDbLink<K, T, any, any>[] = []
 
     foreignKeysValidators: ((item: T) => Promise<void>)[] = []
+
+    private defaultSort?: Compare<T>
 
     constructor(dir: string, filename: string, validators: ObjectValidators<T>, keyExtractor: (item: T) => K) {
         this.dir = dir
@@ -73,11 +75,14 @@ export default class JSONDb<K, T> implements Db<K, T>  {
     }
 
     private applyPagination = (list: T[], pagination?: Pagination): T[] => {
-        if (!pagination) return list
+        if (!pagination) return this.defaultSort ? list.sort(this.defaultSort) : list
+        const results = list.sort(pagination.sort || this.defaultSort)
+
+        if (!pagination.page) return results
+
         const perPage = pagination.perPage || this.PER_PAGE
-        const page = pagination.page || 1
-        const sorted = pagination.sort ? list.sort(pagination.sort) : list
-        return sorted
+        const page = pagination.page
+        return results
             .slice(
                 (page - 1) * perPage,
                 (page * perPage)
@@ -114,6 +119,8 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         await Promise.all(this.foreignKeysValidators.map(v => v(item)))
         return item
     }
+
+    setDefaultSort = (sort?: Compare<T>) => { this.defaultSort = sort }
 
     linkForeignDb = <FK, FT>(link: ForeignDbLink<K, T, FK, FT>) => {
         this.foreignDbs.push(link)
