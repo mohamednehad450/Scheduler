@@ -1,7 +1,35 @@
-import { readFile, mkdir, writeFile } from 'node:fs/promises'
-import { existsSync } from 'node:fs'
+import { existsSync, writeFileSync, renameSync, readFileSync, rmSync, mkdirSync } from 'node:fs'
 import { Db, ForeignDbLink, ObjectValidators, Pagination, Predict, Compare } from './misc';
+import { ObjectSchema } from 'joi';
 
+
+const parseDbFile = <K, T>(file: string, keyExtractor: (item: T) => K, loadValidator?: ObjectSchema<T>): Map<K, T> | false => {
+    try {
+        if (!existsSync(file)) throw new Error(`File: ${file}, doesn't exists`)
+
+        const content = readFileSync(file, 'utf-8')
+
+        const arr = JSON.parse(content)
+        if (!Array.isArray(arr)) throw Error('invalid JSONDb file')
+
+        const map = new Map<K, T>()
+        if (!loadValidator) {
+            arr.map(item => map.set(keyExtractor(item), item))
+            return map
+        }
+
+        // Load if valid
+        for (const item of arr) {
+            const { error, value } = loadValidator.validate(item)
+            !error && value &&
+                map.set(keyExtractor(value), value)
+        }
+
+        return map
+    } catch (error) {
+        return false
+    }
+}
 
 export default class JSONDb<K, T> implements Db<K, T>  {
 
@@ -27,51 +55,38 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         this.keyExtractor = keyExtractor
     }
 
-    init = async () => {
+    init = () => {
         if (!existsSync(this.dir)) {
-            await mkdir(this.dir)
+            mkdirSync(this.dir)
         }
 
         const file = `${this.dir}/${this.filename}.json`
+        const backup = `${this.dir}/${this.filename}-backup.json`
 
         if (!existsSync(file)) {
-            await writeFile(file, "[]")
+            writeFileSync(file, "[]")
             return
         }
 
-        const content = await readFile(file, 'utf-8')
-
-        try {
-            const arr = JSON.parse(content)
-            if (!Array.isArray(arr)) throw Error('invalid JSONDb file')
-
-            if (!this.validators.loadValidator) {
-                arr.map(item => this.map.set(this.keyExtractor(item), item))
-                return
-            }
-
-            // Load if valid
-            for (const item of arr) {
-                const { error, value } = this.validators.loadValidator.validate(item)
-                !error && value &&
-                    this.map.set(this.keyExtractor(value), value)
-            }
-
-            // Write if found invalid items
-            if (this.map.size < arr.length) {
-                await writeFile(file, JSON.stringify([...this.map.values()]))
-            }
-
-        } catch (error) {
-            console.log(`File: "${file}" is an invalid JSON file, Erasing...`)
-            await writeFile(file, "[]")
+        let results = parseDbFile(file, this.keyExtractor, this.validators.loadValidator)
+        if (!results) { results = parseDbFile(backup, this.keyExtractor, this.validators.loadValidator) }
+        if (!results) {
+            writeFileSync(file, "[]")
+            results = new Map()
         }
+
+        existsSync(backup) && rmSync(backup)
+        this.map = results
     }
 
 
 
     private save = async () => {
-        await writeFile(`${this.dir}/${this.filename}.json`, JSON.stringify([...this.map.values()]))
+        const file = `${this.dir}/${this.filename}.json`
+        const backup = `${this.dir}/${this.filename}-backup.json`
+        renameSync(file, backup)
+        writeFileSync(file, JSON.stringify([...this.map.values()]))
+        rmSync(backup)
     }
 
     private applyPagination = (list: T[], pagination?: Pagination): T[] => {
