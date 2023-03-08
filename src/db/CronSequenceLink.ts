@@ -50,12 +50,12 @@ class CronSequenceLink implements CronSequenceLinkInterface {
         const exists = this.cronCRUD.db.exists(cronId)
         if (!exists) return
 
-        const existingSequences = (await Promise.all(sequencesIds.map(this.sequenceCRUD.db.findByKey))).filter(c => c) as BaseSequence[]
+        const existingSequences = sequencesIds.map(this.sequenceCRUD.db.findByKey).filter(c => c) as BaseSequence[]
 
-        await this.db.deleteBy(cs => cs.cronId === cronId)
+        this.db.deleteBy(cs => cs.cronId === cronId)
 
         for (const sequence of existingSequences) {
-            await this.db.insert({
+            this.db.insert({
                 sequenceId: sequence.id,
                 cronId
             })

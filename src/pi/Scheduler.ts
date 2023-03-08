@@ -32,9 +32,9 @@ class Scheduler extends EventEmitter implements SchedulerInterface<BaseSequence[
     start = async () => {
 
         const [pins, cronTriggers, initialActivationStatus] = [
-            await this.db.pinCRUD.db.findAll(),
-            await this.db.cronCRUD.db.findAll(),
-            await this.db.sequenceCRUD.db.findAll()
+            this.db.pinCRUD.db.findAll(),
+            this.db.cronCRUD.db.findAll(),
+            this.db.sequenceCRUD.db.findAll()
         ]
 
         await this.pinManager.start(pins)

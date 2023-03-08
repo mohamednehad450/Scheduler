@@ -1,5 +1,5 @@
 import JSONDb from "./JSONDb"
-import { Compare, EventCRUD, Pagination } from "./misc"
+import { EventCRUD, Pagination } from "./misc"
 import { BaseSequence, BaseSequenceEvent, SequenceEvent } from "./types"
 
 
@@ -37,9 +37,9 @@ export default class SequenceEventCRUD implements EventCRUD<SequenceEvent['id'],
         return this.getSequence(event)
     }
 
-    remove = (key: BaseSequenceEvent['id']) => this.db.deleteByKey(key)
-    removeAll = () => this.db.deleteAll()
-    removeByEmitter = (sequenceId: BaseSequence['id']) => this.db.deleteBy(e => e.sequenceId === sequenceId)
+    remove = async (key: BaseSequenceEvent['id']) => this.db.deleteByKey(key)
+    removeAll = async () => this.db.deleteAll()
+    removeByEmitter = async (sequenceId: BaseSequence['id']) => this.db.deleteBy(e => e.sequenceId === sequenceId)
 
     listAll = async (pagination?: Pagination) => {
         const events = (await this.db.findAll({

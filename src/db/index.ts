@@ -35,6 +35,12 @@ const initDb = async (): Promise<AppDB> => {
     cronDb.setDefaultSort((c1, c2) => c1.label > c2.label ? 1 : -1)
     sequenceEventDb.setDefaultSort((e1, e2) => Date.parse(e1.date) > Date.parse(e2.date) ? -1 : 1)
 
+    sequenceDb.init()
+    pinDb.init()
+    cronDb.init()
+    adminDb.init()
+    sequenceEventDb.init()
+    cronSequenceDb.init()
 
     pinDb.linkForeignDb(pinSequenceLink(sequenceDb))
     sequenceDb.linkForeignDb(sequenceEventLink(sequenceEventDb))
@@ -51,15 +57,6 @@ const initDb = async (): Promise<AppDB> => {
     const cronValidator = cronExistsValidator(cronDb)
     cronSequenceDb.addForeignKeyValidator(cs => cronValidator(cs.cronId))
 
-
-    await Promise.all([
-        sequenceDb.init(),
-        pinDb.init(),
-        cronDb.init(),
-        adminDb.init(),
-        sequenceEventDb.init(),
-        cronSequenceDb.init()
-    ])
 
     const sequenceCRUD = new SequenceCRUD(sequenceDb, cronDb, cronSequenceDb)
     const cronCRUD = new CronCRUD(cronDb, sequenceDb, cronSequenceDb)

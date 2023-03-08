@@ -36,6 +36,6 @@ export default class PinCRUD extends EventEmitter implements CRUD<Pin['channel']
         await this.db.deleteByKey(key)
         this.emit('remove', key)
     }
-    get = (key: Pin['channel']) => this.db.findByKey(key)
-    list = () => this.db.findAll()
+    get = async (key: Pin['channel']) => this.db.findByKey(key)
+    list = async () => this.db.findAll()
 }
