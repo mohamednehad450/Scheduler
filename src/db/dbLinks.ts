@@ -33,14 +33,16 @@ const cronCSLink: DbLinker<BaseCron['id'], BaseCron, void, CronSequence> = (db) 
     db,
     predict: ({ foreignItem, key, oldKey }) => foreignItem.cronId === (oldKey || key),
     onDelete: "CASCADE",
-    onUpdate: (cs, cron, oldKey) => oldKey ? ({ ...cs, cronId: cron.id }) : cs
+    // CronSequence links are immutable since Cron and Sequence keys are
+    // onUpdate: (cs, cron, oldKey) => oldKey ? ({ ...cs, cronId: cron.id }) : cs
 })
 
 const sequenceCSLink: DbLinker<BaseSequence['id'], BaseSequence, void, CronSequence> = (db) => ({
     db,
     predict: ({ foreignItem, key, oldKey }) => foreignItem.sequenceId === (oldKey || key),
     onDelete: "CASCADE",
-    onUpdate: (cs, sequence, oldKey) => oldKey ? ({ ...cs, sequenceId: sequence.id }) : cs
+    // CronSequence links are immutable since Cron and Sequence keys are
+    // onUpdate: (cs, sequence, oldKey) => oldKey ? ({ ...cs, sequenceId: sequence.id }) : cs
 })
 
 
