@@ -36,19 +36,19 @@ type ForeignDbLink<K, T, FK, FT> = {
 interface Db<K, T> {
     setDefaultSort: (sort?: Compare<T>) => void
     linkForeignDb: <FK, FT>(link: ForeignDbLink<K, T, FK, FT>) => void
-    addForeignKeyValidator: (validator: (item: T) => Promise<void>) => void
-    insert: (obj: T) => Promise<T>
-    update: (id: K, obj: Partial<T>) => Promise<T | undefined>
-    updateBy: (predict: Predict<T>, updater: Updater<T>) => Promise<T[]>
-    findByKey: (key: K) => Promise<T | undefined>
-    findBy: (predict: Predict<T>, page?: Pagination) => Promise<T[]>
-    findAll: (page?: Pagination) => Promise<T[]>
-    deleteBy: (predict: Predict<T>) => Promise<void>
-    deleteByKey: (key: K) => Promise<void>
-    deleteAll: () => Promise<void>
-    count: () => Promise<number>
-    countBy: (predict: Predict<T>) => Promise<number>
-    exists: (key: K) => Promise<boolean>
+    addForeignKeyValidator: (validator: (item: T) => void) => void
+    insert: (obj: T) => T
+    update: (id: K, obj: Partial<T>) => T | undefined
+    updateBy: (predict: Predict<T>, updater: Updater<T>) => T[]
+    findByKey: (key: K) => T | undefined
+    findBy: (predict: Predict<T>, page?: Pagination) => T[]
+    findAll: (page?: Pagination) => T[]
+    deleteBy: (predict: Predict<T>) => void
+    deleteByKey: (key: K) => void
+    deleteAll: () => void
+    count: () => number
+    countBy: (predict: Predict<T>) => number
+    exists: (key: K) => boolean
 }
 
 interface CRUD<K, T> extends EventEmitter {

@@ -43,7 +43,7 @@ export default class JSONDb<K, T> implements Db<K, T>  {
 
     foreignDbs: ForeignDbLink<K, T, any, any>[] = []
 
-    foreignKeysValidators: ((item: T) => Promise<void>)[] = []
+    foreignKeysValidators: ((item: T) => void)[] = []
 
     private defaultSort?: Compare<T>
 
@@ -81,7 +81,9 @@ export default class JSONDb<K, T> implements Db<K, T>  {
 
 
 
-    private save = async () => {
+    private save = () => {
+        console.log(new Date().toTimeString(), this.filename, " saving");
+
         const file = `${this.dir}/${this.filename}.json`
         const backup = `${this.dir}/${this.filename}-backup.json`
         renameSync(file, backup)
@@ -104,8 +106,8 @@ export default class JSONDb<K, T> implements Db<K, T>  {
             )
     }
 
-    private foreignDbsUpdate = async (updatedObject: T, oldKey?: K) => {
-        await Promise.all(this.foreignDbs.map(({ db, onUpdate, predict }) => {
+    private foreignDbsUpdate = (updatedObject: T, oldKey?: K) => {
+        this.foreignDbs.forEach(({ db, onUpdate, predict }) => {
             if (!onUpdate) return
             db.updateBy(
                 (foreignItem) => predict({ foreignItem, key: this.keyExtractor(updatedObject), oldKey }),
@@ -114,11 +116,11 @@ export default class JSONDb<K, T> implements Db<K, T>  {
                     updatedObject,
                     oldKey
                 ))
-        }))
+        })
     }
 
-    private foreignDbsDelete = async (key: K) => {
-        await Promise.all(this.foreignDbs.map(({ db, onDelete, predict }) => {
+    private foreignDbsDelete = (key: K) => {
+        this.foreignDbs.forEach(({ db, onDelete, predict }) => {
             if (!onDelete) return
             if (onDelete === "CASCADE") {
                 return db.deleteBy((foreignItem) => predict({ foreignItem, key }),)
@@ -127,11 +129,11 @@ export default class JSONDb<K, T> implements Db<K, T>  {
                 (foreignItem) => predict({ foreignItem, key }),
                 (foreignItem) => onDelete(foreignItem, key)
             )
-        }))
+        })
     }
 
-    private validateForeignKeys = async (item: T) => {
-        await Promise.all(this.foreignKeysValidators.map(v => v(item)))
+    private validateForeignKeys = (item: T) => {
+        this.foreignKeysValidators.forEach(v => v(item))
         return item
     }
 
@@ -141,16 +143,16 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         this.foreignDbs.push(link)
     }
 
-    addForeignKeyValidator = (validator: (item: T) => Promise<void>) => {
+    addForeignKeyValidator = (validator: (item: T) => void) => {
         this.foreignKeysValidators.push(validator)
     }
 
-    insert = async (arg: T) => {
+    insert = (arg: T) => {
 
         if (!this.validators.inputValidator) {
             if (this.map.has(this.keyExtractor(arg))) throw new Error("Object already exists.")
 
-            this.map.set(this.keyExtractor(arg), await this.validateForeignKeys(arg))
+            this.map.set(this.keyExtractor(arg), this.validateForeignKeys(arg))
             this.save()
             return arg as T
         }
@@ -160,20 +162,20 @@ export default class JSONDb<K, T> implements Db<K, T>  {
 
         if (this.map.has(this.keyExtractor(value))) throw new Error("Object already exists.")
 
-        this.map.set(this.keyExtractor(value), await this.validateForeignKeys(value))
+        this.map.set(this.keyExtractor(value), this.validateForeignKeys(value))
         this.save()
         return value as T
     }
 
 
 
-    update = async (key: K, arg: Partial<T>) => {
+    update = (key: K, arg: Partial<T>) => {
         if (!this.map.has(key)) return
 
         if (!this.validators.updateValidator) {
             const updatedObject = { ...this.map.get(key), ...arg } as T
 
-            this.map.set(this.keyExtractor(updatedObject), await this.validateForeignKeys(updatedObject))
+            this.map.set(this.keyExtractor(updatedObject), this.validateForeignKeys(updatedObject))
             this.save()
             return
         }
@@ -191,16 +193,16 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         // If key is updated
         if (oldKey) this.map.delete(key)
 
-        this.map.set(this.keyExtractor(updatedObject), await this.validateForeignKeys(updatedObject))
+        this.map.set(this.keyExtractor(updatedObject), this.validateForeignKeys(updatedObject))
 
-        await this.foreignDbsUpdate(updatedObject, oldKey)
+        this.foreignDbsUpdate(updatedObject, oldKey)
 
         this.save()
 
         return updatedObject as T
     }
 
-    updateBy = async (predict: Predict<T>, updater: (item: T) => T) => {
+    updateBy = (predict: Predict<T>, updater: (item: T) => T) => {
 
         const arr: T[] = []
         for (const [key, val] of this.map) {
@@ -219,54 +221,55 @@ export default class JSONDb<K, T> implements Db<K, T>  {
             // If key is updated
             if (oldKey) this.map.delete(key)
 
-            await this.foreignDbsUpdate(updatedObject, oldKey)
+            this.foreignDbsUpdate(updatedObject, oldKey)
 
-            this.map.set(this.keyExtractor(updatedObject), await this.validateForeignKeys(updatedObject))
+            this.map.set(this.keyExtractor(updatedObject), this.validateForeignKeys(updatedObject))
             arr.push(updatedObject)
 
         }
-        await this.save()
+        this.save()
         return arr
     }
 
-    findAll = async (pagination?: Pagination) => {
+    findAll = (pagination?: Pagination) => {
         return this.applyPagination([...this.map.values()], pagination)
     }
-    findBy = async (predict: Predict<T>, pagination?: Pagination) => {
+    findBy = (predict: Predict<T>, pagination?: Pagination) => {
         return this.applyPagination(
             [...this.map.values()].filter(predict),
             pagination
         )
     }
-    findByKey = async (key: K) => this.map.get(key)
+    findByKey = (key: K) => this.map.get(key)
 
 
 
-    deleteByKey = async (key: K) => {
+    deleteByKey = (key: K) => {
         if (!this.map.has(key)) return
         this.map.delete(key)
-        await this.foreignDbsDelete(key)
-        await this.save()
+        this.foreignDbsDelete(key)
+        this.save()
     }
 
-    deleteBy = async (predict: Predict<T>) => {
+    deleteBy = (predict: Predict<T>) => {
         for (const [key, val] of this.map) {
-            if (predict(val)) this.map.delete(key)
-            await this.foreignDbsDelete(key)
+            if (!predict(val)) continue
+            this.map.delete(key)
+            this.foreignDbsDelete(key)
         }
         return this.save()
     }
 
-    deleteAll = async () => {
+    deleteAll = () => {
         for (const key of this.map.keys()) {
-            await this.foreignDbsDelete(key)
+            this.foreignDbsDelete(key)
         }
         this.map.clear()
         return this.save()
     }
 
-    count = async () => this.map.size
-    countBy = async (predict: Predict<T>) => [...this.map.values()].filter(predict).length
-    exists = async (key: K) => this.map.has(key)
+    count = () => this.map.size
+    countBy = (predict: Predict<T>) => [...this.map.values()].filter(predict).length
+    exists = (key: K) => this.map.has(key)
 }
 
