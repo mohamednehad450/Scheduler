@@ -82,8 +82,6 @@ export default class JSONDb<K, T> implements Db<K, T>  {
 
 
     private save = () => {
-        console.log(new Date().toTimeString(), this.filename, " saving");
-
         const file = `${this.dir}/${this.filename}.json`
         const backup = `${this.dir}/${this.filename}-backup.json`
         renameSync(file, backup)
