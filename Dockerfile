@@ -1,9 +1,13 @@
-FROM node:18
+FROM node:18-alpine
 
 WORKDIR /server
 
 COPY package.json ./
 COPY yarn.lock ./
+
+# Node & epoll dependencies 
+RUN apk update
+RUN apk add --no-cache gcc g++ make python3
 
 RUN npx yarn install
 
