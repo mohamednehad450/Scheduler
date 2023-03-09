@@ -1,41 +1,40 @@
-import { existsSync, writeFileSync, renameSync, readFileSync, rmSync, mkdirSync } from 'node:fs'
-import { Db, ForeignDbLink, ObjectValidators, Pagination, Predict, Compare } from './misc';
+import { existsSync, writeFileSync, renameSync, readFileSync, rmSync, mkdirSync, } from 'node:fs'
+import path from 'path'
 import { ObjectSchema } from 'joi';
 
+import type { Db, ForeignDbLink, ObjectValidators, Pagination, Predict, Compare } from './misc';
 
-const parseDbFile = <K, T>(file: string, keyExtractor: (item: T) => K, loadValidator?: ObjectSchema<T>): Map<K, T> | false => {
-    try {
-        if (!existsSync(file)) throw new Error(`File: ${file}, doesn't exists`)
 
-        const content = readFileSync(file, 'utf-8')
+const parseDbFile = <K, T>(file: string, keyExtractor: (item: T) => K, loadValidator?: ObjectSchema<T>): Map<K, T> => {
 
-        const arr = JSON.parse(content)
-        if (!Array.isArray(arr)) throw Error('invalid JSONDb file')
+    if (!existsSync(file)) throw new Error(`File: ${file}, doesn't exists`)
 
-        const map = new Map<K, T>()
-        if (!loadValidator) {
-            arr.map(item => map.set(keyExtractor(item), item))
-            return map
-        }
+    const content = readFileSync(file, 'utf-8')
 
-        // Load if valid
-        for (const item of arr) {
-            const { error, value } = loadValidator.validate(item)
-            !error && value &&
-                map.set(keyExtractor(value), value)
-        }
+    const arr = JSON.parse(content)
+    if (!Array.isArray(arr)) throw Error('invalid JSONDb file')
 
+    const map = new Map<K, T>()
+    if (!loadValidator) {
+        arr.map(item => map.set(keyExtractor(item), item))
         return map
-    } catch (error) {
-        return false
     }
+
+    // Load if valid
+    for (const item of arr) {
+        const { error, value } = loadValidator.validate(item)
+        !error && value &&
+            map.set(keyExtractor(value), value)
+    }
+
+    return map
 }
 
 export default class JSONDb<K, T> implements Db<K, T>  {
 
     PER_PAGE = 20
     dir: string
-    filename: string
+    dbName: string
     map: Map<K, T>
 
     validators: ObjectValidators<T>
@@ -47,12 +46,17 @@ export default class JSONDb<K, T> implements Db<K, T>  {
 
     private defaultSort?: Compare<T>
 
-    constructor(dir: string, filename: string, validators: ObjectValidators<T>, keyExtractor: (item: T) => K) {
+    private file: string
+    private backupFile: string
+
+    constructor(dir: string, dbName: string, validators: ObjectValidators<T>, keyExtractor: (item: T) => K) {
         this.dir = dir
-        this.filename = filename
+        this.dbName = dbName
         this.map = new Map()
         this.validators = validators
         this.keyExtractor = keyExtractor
+        this.file = path.join(this.dir, `${this.dbName}.json`)
+        this.backupFile = path.join(this.dir, `${this.dbName}-backup.json`)
     }
 
     init = () => {
@@ -60,54 +64,57 @@ export default class JSONDb<K, T> implements Db<K, T>  {
             mkdirSync(this.dir)
         }
 
-        const file = `${this.dir}/${this.filename}.json`
-        const backup = `${this.dir}/${this.filename}-backup.json`
-
-        if (!existsSync(file)) {
-            writeFileSync(file, "[]")
+        // Load main db file
+        try {
+            this.map = parseDbFile(this.file, this.keyExtractor, this.validators.loadValidator)
+            existsSync(this.backupFile) && rmSync(this.backupFile)
             return
+        } catch (error) {
+            console.log(`File: "${this.file}" is missing or invalid.`)
+            console.error(error);
         }
 
-        let results = parseDbFile(file, this.keyExtractor, this.validators.loadValidator)
-        if (!results) { results = parseDbFile(backup, this.keyExtractor, this.validators.loadValidator) }
-        if (!results) {
-            writeFileSync(file, "[]")
-            results = new Map()
+        // Load backup db file if main failed
+        try {
+            this.map = parseDbFile(this.backupFile, this.keyExtractor, this.validators.loadValidator)
+            existsSync(this.backupFile) && rmSync(this.backupFile)
+            return
+        } catch (error) {
+            console.log(`Backup file: "${this.backupFile}" is missing or invalid.`)
+            console.error(error);
+            console.log("Creating empty file")
+            writeFileSync(this.file, "[]")
         }
-
-        existsSync(backup) && rmSync(backup)
-        this.map = results
     }
 
 
 
     private save = () => {
-        const file = `${this.dir}/${this.filename}.json`
-        const backup = `${this.dir}/${this.filename}-backup.json`
-        renameSync(file, backup)
-        writeFileSync(file, JSON.stringify([...this.map.values()]))
-        rmSync(backup)
+        renameSync(this.file, this.backupFile)
+        writeFileSync(this.file, JSON.stringify(Array.from(this.map.values())))
+        rmSync(this.backupFile)
     }
 
     private applyPagination = (list: T[], pagination?: Pagination): T[] => {
         if (!pagination) return this.defaultSort ? list.sort(this.defaultSort) : list
-        const results = list.sort(pagination.sort || this.defaultSort)
 
-        if (!pagination.page) return results
+        const { sort, page, perPage = this.PER_PAGE } = pagination
 
-        const perPage = pagination.perPage || this.PER_PAGE
-        const page = pagination.page
+        const results = list.sort(sort || this.defaultSort)
+
+        if (!page) return results
+
         return results
             .slice(
                 (page - 1) * perPage,
-                (page * perPage)
+                page * perPage
             )
     }
 
     private foreignDbsUpdate = (updatedObject: T, oldKey?: K) => {
-        this.foreignDbs.forEach(({ db, onUpdate, predict }) => {
+        this.foreignDbs.forEach(({ db: foreignDb, onUpdate, predict }) => {
             if (!onUpdate) return
-            db.updateBy(
+            foreignDb.updateBy(
                 (foreignItem) => predict({ foreignItem, key: this.keyExtractor(updatedObject), oldKey }),
                 (foreignItem) => onUpdate(
                     foreignItem,
@@ -170,16 +177,12 @@ export default class JSONDb<K, T> implements Db<K, T>  {
     update = (key: K, arg: Partial<T>) => {
         if (!this.map.has(key)) return
 
-        if (!this.validators.updateValidator) {
-            const updatedObject = { ...this.map.get(key), ...arg } as T
+        const {
+            value = arg,
+            error
+        } = this.validators.updateValidator?.validate(arg) || {}
 
-            this.map.set(this.keyExtractor(updatedObject), this.validateForeignKeys(updatedObject))
-            this.save()
-            return
-        }
-
-        const { value, error } = this.validators.updateValidator.validate(arg)
-        if (error || !value) throw error
+        if (error) throw error
 
         const updatedObject = { ...this.map.get(key), ...value } as T
 
@@ -223,23 +226,25 @@ export default class JSONDb<K, T> implements Db<K, T>  {
 
             this.map.set(this.keyExtractor(updatedObject), this.validateForeignKeys(updatedObject))
             arr.push(updatedObject)
-
         }
-        this.save()
+
+        arr.length && this.save()
+
         return arr
     }
 
     findAll = (pagination?: Pagination) => {
-        return this.applyPagination([...this.map.values()], pagination)
+        return this.applyPagination(Array.from(this.map.values()), pagination)
     }
+
     findBy = (predict: Predict<T>, pagination?: Pagination) => {
         return this.applyPagination(
-            [...this.map.values()].filter(predict),
+            Array.from(this.map.values()).filter(predict),
             pagination
         )
     }
-    findByKey = (key: K) => this.map.get(key)
 
+    findByKey = (key: K) => this.map.get(key)
 
 
     deleteByKey = (key: K) => {
@@ -250,12 +255,14 @@ export default class JSONDb<K, T> implements Db<K, T>  {
     }
 
     deleteBy = (predict: Predict<T>) => {
+        let deleted = false
         for (const [key, val] of this.map) {
             if (!predict(val)) continue
+            deleted = true
             this.map.delete(key)
             this.foreignDbsDelete(key)
         }
-        return this.save()
+        deleted && this.save()
     }
 
     deleteAll = () => {
@@ -267,7 +274,7 @@ export default class JSONDb<K, T> implements Db<K, T>  {
     }
 
     count = () => this.map.size
-    countBy = (predict: Predict<T>) => [...this.map.values()].filter(predict).length
+    countBy = (predict: Predict<T>) => Array.from(this.map.values()).filter(predict).length
     exists = (key: K) => this.map.has(key)
 }
 
