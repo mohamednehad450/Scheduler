@@ -233,17 +233,14 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         return arr
     }
 
-    findAll = (pagination?: Pagination) => {
-        return this.applyPagination(Array.from(this.map.values()), pagination)
-    }
-
-    findBy = (predict: Predict<T>, pagination?: Pagination) => {
-        return this.applyPagination(
-            Array.from(this.map.values()).filter(predict),
-            pagination
-        )
-    }
-
+    findAll = (pagination?: Pagination) => this.applyPagination(
+        Array.from(this.map.values()),
+        pagination
+    )
+    findBy = (predict: Predict<T>, pagination?: Pagination) => this.applyPagination(
+        Array.from(this.map.values()).filter(predict),
+        pagination
+    )
     findByKey = (key: K) => this.map.get(key)
 
 
