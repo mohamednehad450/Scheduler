@@ -210,7 +210,7 @@ export default class JSONDb<K, T> implements Db<K, T>  {
 
             if (!predict(val)) continue
 
-            const updatedObject = updater(val)
+            const { value: updatedObject = updater(val) } = this.validators.loadValidator?.validate(updater(val)) || {}
 
             // If key is updated, with an existing key
             if (key !== this.keyExtractor(updatedObject) &&
