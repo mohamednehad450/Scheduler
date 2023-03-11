@@ -1,25 +1,25 @@
-import { sequenceValidators, cronValidators, pinsValidators, sequenceEventsValidators } from "./validators"
-import SequenceEventCRUD from "./SequenceEventCRUD"
-import AdminManager from "./AdminManager"
 import JSONDb from "./JSONDb"
+import AdminManager from "./AdminManager"
 import CronSequenceLink from "./CronSequenceLink"
 import { cronCSLink, pinSequenceLink, sequenceCSLink, sequenceEventLink } from "./dbLinks"
-import { Admin, BaseCron, BaseSequence, BaseSequenceEvent, Cron, CronSequence, Pin, Sequence } from "./types"
+import { sequenceValidators, cronValidators, pinsValidators, sequenceEventsValidators } from "./validators"
 import { channelsExistsValidator, cronExistsValidator, sequenceExistsValidator } from "./foreignKeysValidators"
-import { resolveCron, resolveSequence } from "./resolvers"
+import { resolveCron, resolveSequence, resolveSequenceEvent } from "./resolvers"
 
+import type { Admin, BaseCron, BaseSequence, BaseSequenceEvent, Cron, CronSequence, Pin, Sequence, SequenceEvent } from "./types"
 
 type AppDB = {
     sequenceDb: JSONDb<BaseSequence['id'], BaseSequence>,
     pinDb: JSONDb<Pin['channel'], Pin>,
     cronDb: JSONDb<BaseCron['id'], BaseCron>,
     cronSequenceDb: JSONDb<void, CronSequence>,
+    sequenceEventDb: JSONDb<BaseSequenceEvent['id'], BaseSequenceEvent>,
     adminManager: AdminManager,
-    sequenceEventCRUD: SequenceEventCRUD
     cronSequenceLink: CronSequenceLink,
     resolvers: {
         resolveCron: (base: BaseCron) => Cron,
         resolveSequence: (base: BaseSequence) => Sequence
+        resolveSequenceEvent: (base: BaseSequenceEvent) => SequenceEvent
     }
 }
 
@@ -64,7 +64,6 @@ const initDb = async (): Promise<AppDB> => {
 
     const cronSequenceLink = new CronSequenceLink(cronSequenceDb, sequenceDb, cronDb)
     const adminManager = new AdminManager(adminDb)
-    const sequenceEventCRUD = new SequenceEventCRUD(sequenceEventDb, sequenceDb)
 
 
     return {
@@ -73,11 +72,12 @@ const initDb = async (): Promise<AppDB> => {
         cronDb,
         cronSequenceDb,
         adminManager,
-        sequenceEventCRUD,
+        sequenceEventDb,
         cronSequenceLink,
         resolvers: {
             resolveCron: resolveCron(cronSequenceDb, sequenceDb),
-            resolveSequence: resolveSequence(cronSequenceDb, cronDb)
+            resolveSequence: resolveSequence(cronSequenceDb, cronDb),
+            resolveSequenceEvent: resolveSequenceEvent(sequenceDb)
         }
     }
 }

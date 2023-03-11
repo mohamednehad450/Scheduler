@@ -1,5 +1,5 @@
 import JSONDb from "./JSONDb"
-import { BaseCron, BaseSequence, Cron, CronSequence, Sequence } from "./types"
+import { BaseCron, BaseSequence, BaseSequenceEvent, Cron, CronSequence, Sequence, SequenceEvent } from "./types"
 
 
 
@@ -24,5 +24,16 @@ export const resolveCron =
             return {
                 ...cron,
                 sequences: sequences.map(({ id, name, active }) => ({ id, name, active }))
+            }
+        }
+
+
+export const resolveSequenceEvent =
+    (sequenceDb: JSONDb<BaseSequence['id'], BaseSequence>) =>
+        (event: BaseSequenceEvent): SequenceEvent => {
+            const seq = sequenceDb.findByKey(event.sequenceId)
+            return {
+                ...event,
+                sequence: { name: seq?.name || "Not found or removed." }
             }
         }

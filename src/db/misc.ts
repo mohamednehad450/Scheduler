@@ -85,17 +85,6 @@ abstract class Db<K, T> extends EventEmitter {
     }
 }
 
-interface EventCRUD<K, T> {
-    emit: (obj: T) => Promise<T>
-    get: (key: K) => Promise<T | null>
-    remove: (key: K) => Promise<void>
-    removeByEmitter: (emitterKey: any) => Promise<void>
-    removeAll: () => Promise<void>
-    listAll: (pagination?: Pagination) => Promise<{ events: T[], page: PageInfo }>
-    listByEmitter: (emitterKey: any, pagination?: Pagination) => Promise<{ events: T[], page: PageInfo }>
-}
-
-
 
 const parseDbFile = <K, T>(file: string, keyExtractor: (item: T) => K, loadValidator?: ObjectSchema<T>): Map<K, T> => {
 
@@ -131,7 +120,6 @@ export type {
     PageInfo,
     DbInterface,
     DbEvents,
-    EventCRUD,
     ForeignDbLink
 }
 export {
