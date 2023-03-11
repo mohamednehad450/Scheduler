@@ -6,7 +6,6 @@ import { DbInterface } from "../db/misc"
 import { BaseCron, BaseSequence } from '../db/types'
 
 
-
 export const CRUDRouter = <K, BaseT, T extends BaseT>(
     db: DbInterface<K, BaseT>,
     stringToKey: (s: string) => K,
@@ -114,6 +113,15 @@ export const CRUDRouter = <K, BaseT, T extends BaseT>(
 }
 
 const PER_PAGE = 20
+const parsePagination = (page?: any, perPage?: any) => {
+    const p = page ? parseInt(page) : 1
+    const perP = perPage ? parseInt(perPage) : PER_PAGE
+    return {
+        page: isNaN(p) ? p : 1,
+        perPage: isNaN(perP) ? perP : PER_PAGE
+    }
+}
+
 
 
 export const EventRouter = <K, BaseT, T>(
@@ -128,18 +136,15 @@ export const EventRouter = <K, BaseT, T>(
     // List all Events 
     router.get("/", (req, res) => {
         try {
-            const pagination = {
-                page: isNaN(Number(req.query.page)) ? 1 : Number(req.query.page),
-                perPage: isNaN(Number(req.query.perPage)) ? PER_PAGE : Number(req.query.perPage)
-            }
+            const pagination = parsePagination(req.query.page, req.query.perPage)
             const events = resolver ?
                 db.findAll(pagination).map(resolver) :
                 db.findAll(pagination)
             res.json({
                 events,
                 page: {
-                    current: pagination?.page || 1,
-                    perPage: pagination?.perPage || PER_PAGE,
+                    current: pagination.page,
+                    perPage: pagination.perPage,
                     total: db.count(),
                 }
             })
@@ -152,10 +157,7 @@ export const EventRouter = <K, BaseT, T>(
     // List Events by Emitter
     router.get('/:id', (req, res) => {
         try {
-            const pagination = {
-                page: isNaN(Number(req.query.page)) ? 1 : Number(req.query.page),
-                perPage: isNaN(Number(req.query.perPage)) ? PER_PAGE : Number(req.query.perPage)
-            }
+            const pagination = parsePagination(req.query.page, req.query.perPage)
             const predict = (item: BaseT) => emitterKey(item) === stringToKey(req.params.id)
             const events = resolver ?
                 db.findBy(predict, pagination).map(resolver) :
@@ -163,8 +165,8 @@ export const EventRouter = <K, BaseT, T>(
             res.json({
                 events,
                 page: {
-                    current: pagination?.page || 1,
-                    perPage: pagination?.perPage || PER_PAGE,
+                    current: pagination.page,
+                    perPage: pagination.perPage,
                     total: db.countBy(predict),
                 }
             })
