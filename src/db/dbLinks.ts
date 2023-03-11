@@ -1,8 +1,8 @@
-import { Db, ForeignDbLink } from "./misc"
+import { DbInterface, ForeignDbLink } from "./misc"
 import { BaseCron, BaseSequence, BaseSequenceEvent, CronSequence, Pin } from "./types"
 
 
-type DbLinker<K, T, FK, FT> = (db: Db<FK, FT>) => ForeignDbLink<K, T, FK, FT>
+type DbLinker<K, T, FK, FT> = (db: DbInterface<FK, FT>) => ForeignDbLink<K, T, FK, FT>
 
 
 const pinSequenceLink: DbLinker<Pin['channel'], Pin, BaseSequence['id'], BaseSequence> = (db) => ({
