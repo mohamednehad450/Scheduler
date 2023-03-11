@@ -1,36 +1,11 @@
-import { existsSync, writeFileSync, renameSync, readFileSync, rmSync, mkdirSync, } from 'node:fs'
+import { existsSync, writeFileSync, renameSync, rmSync, mkdirSync } from 'node:fs'
 import path from 'path'
-import { ObjectSchema } from 'joi';
+import { Db, parseDbFile } from "./misc"
 
-import type { Db, ForeignDbLink, ObjectValidators, Pagination, Predict, Compare } from './misc';
+import type { ForeignDbLink, ObjectValidators, Pagination, Predict, Compare } from './misc';
 
 
-const parseDbFile = <K, T>(file: string, keyExtractor: (item: T) => K, loadValidator?: ObjectSchema<T>): Map<K, T> => {
-
-    if (!existsSync(file)) throw new Error(`File: ${file}, doesn't exists`)
-
-    const content = readFileSync(file, 'utf-8')
-
-    const arr = JSON.parse(content)
-    if (!Array.isArray(arr)) throw Error('invalid JSONDb file')
-
-    const map = new Map<K, T>()
-    if (!loadValidator) {
-        arr.map(item => map.set(keyExtractor(item), item))
-        return map
-    }
-
-    // Load if valid
-    for (const item of arr) {
-        const { error, value } = loadValidator.validate(item)
-        !error && value &&
-            map.set(keyExtractor(value), value)
-    }
-
-    return map
-}
-
-export default class JSONDb<K, T> implements Db<K, T>  {
+export default class JSONDb<K, T> extends Db<K, T>  {
 
     PER_PAGE = 20
     dir: string
@@ -50,6 +25,7 @@ export default class JSONDb<K, T> implements Db<K, T>  {
     private backupFile: string
 
     constructor(dir: string, dbName: string, validators: ObjectValidators<T>, keyExtractor: (item: T) => K) {
+        super()
         this.dir = dir
         this.dbName = dbName
         this.map = new Map()
@@ -169,6 +145,7 @@ export default class JSONDb<K, T> implements Db<K, T>  {
 
         this.map.set(this.keyExtractor(value), this.validateForeignKeys(value))
         this.save()
+        this.emit("insert", value)
         return value as T
     }
 
@@ -199,7 +176,7 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         this.foreignDbsUpdate(updatedObject, oldKey)
 
         this.save()
-
+        this.emit("update", [updatedObject])
         return updatedObject as T
     }
 
@@ -229,7 +206,7 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         }
 
         arr.length && this.save()
-
+        arr.length && this.emit("update", arr)
         return arr
     }
 
@@ -249,25 +226,30 @@ export default class JSONDb<K, T> implements Db<K, T>  {
         this.map.delete(key)
         this.foreignDbsDelete(key)
         this.save()
+        this.emit('remove', [key])
     }
 
     deleteBy = (predict: Predict<T>) => {
-        let deleted = false
+        let deleted: K[] = []
         for (const [key, val] of this.map) {
             if (!predict(val)) continue
-            deleted = true
+            deleted.push(key)
             this.map.delete(key)
             this.foreignDbsDelete(key)
         }
-        deleted && this.save()
+        deleted.length && this.save()
+        deleted.length && this.emit('remove', deleted)
+
     }
 
     deleteAll = () => {
         for (const key of this.map.keys()) {
             this.foreignDbsDelete(key)
         }
+        const keys = Array.from(this.map.keys())
         this.map.clear()
-        return this.save()
+        this.save()
+        this.emit("remove", keys)
     }
 
     count = () => this.map.size
