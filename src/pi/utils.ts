@@ -74,11 +74,11 @@ const activationLogger = (initialStatus: { [key: BaseSequence['id']]: boolean },
         await Promise.all(sequences.map(seq => {
             if (seq.active !== status[seq.id]) {
                 status[seq.id] = seq.active
-                return db.sequenceEventCRUD.emit({
+                return db.sequenceEventDb.insert({
                     eventType: seq.active ? "activate" : "deactivate",
                     sequenceId: seq.id,
                     date: new Date().toISOString()
-                })
+                } as any)
             }
         }))
     }

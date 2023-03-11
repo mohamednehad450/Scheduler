@@ -75,11 +75,11 @@ class Scheduler extends EventEmitter implements SchedulerInterface<BaseSequence[
             this.emit(event, id, date)
 
             try {
-                this.db.sequenceEventCRUD.emit({
+                this.db.sequenceEventDb.insert({
                     sequenceId: id,
                     eventType: event,
                     date,
-                })
+                } as any)
             } catch (error) {
                 console.error(`Failed to emit SequenceEvent (id:${id}, event:${event}), database error`, error)
             }
