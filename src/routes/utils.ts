@@ -2,7 +2,7 @@ import { compare } from 'bcrypt'
 import { Router, Handler } from 'express'
 import { sign, verify } from 'jsonwebtoken'
 import { AppDB } from '../db'
-import { DbInterface, EventCRUD, } from "../db/misc"
+import { DbInterface } from "../db/misc"
 import { BaseCron, BaseSequence } from '../db/types'
 
 
@@ -113,70 +113,88 @@ export const CRUDRouter = <K, BaseT, T extends BaseT>(
     return router
 }
 
+const PER_PAGE = 20
 
 
-export const EventRouter = <K, T>(db: EventCRUD<K, T>, stringToKey: (s: string) => K) => {
+export const EventRouter = <K, BaseT, T>(
+    db: DbInterface<K, BaseT>,
+    emitterKey: (item: BaseT) => K,
+    stringToKey: (s: string) => K,
+    resolver?: (item: BaseT) => T
+
+) => {
 
     const router = Router()
     // List all Events 
     router.get("/", (req, res) => {
-        db.listAll({
-            page: Number(req.query.page),
-            perPage: Number(req.query.perPage)
-        })
-            .then(ms => {
-                res.json(ms)
-            })
-            .catch(err => {
-                res.status(500)
-                res.json(err)
-            })
-    })
-
-    // List Events by parameter
-    router.get('/:id', (req, res) => {
-        db.listByEmitter(
-            stringToKey(req.params.id),
-            {
-                page: Number(req.query.page),
-                perPage: Number(req.query.perPage)
-            })
-            .then(m => {
-                if (!m) {
-                    res.status(404)
-                    res.json({ error: "NOT FOUND" })
-                    return
+        try {
+            const pagination = {
+                page: isNaN(Number(req.query.page)) ? 1 : Number(req.query.page),
+                perPage: isNaN(Number(req.query.perPage)) ? PER_PAGE : Number(req.query.perPage)
+            }
+            const events = resolver ?
+                db.findAll(pagination).map(resolver) :
+                db.findAll(pagination)
+            res.json({
+                events,
+                page: {
+                    current: pagination?.page || 1,
+                    perPage: pagination?.perPage || PER_PAGE,
+                    total: db.count(),
                 }
-                res.json(m)
             })
-            .catch(err => {
-                res.status(500)
-                res.json(err)
-            })
+        } catch (error) {
+            res.status(500)
+            res.json(error)
+        }
     })
 
-    // Delete Events by parameter
+    // List Events by Emitter
+    router.get('/:id', (req, res) => {
+        try {
+            const pagination = {
+                page: isNaN(Number(req.query.page)) ? 1 : Number(req.query.page),
+                perPage: isNaN(Number(req.query.perPage)) ? PER_PAGE : Number(req.query.perPage)
+            }
+            const predict = (item: BaseT) => emitterKey(item) === stringToKey(req.params.id)
+            const events = resolver ?
+                db.findBy(predict, pagination).map(resolver) :
+                db.findBy(predict, pagination)
+            res.json({
+                events,
+                page: {
+                    current: pagination?.page || 1,
+                    perPage: pagination?.perPage || PER_PAGE,
+                    total: db.countBy(predict),
+                }
+            })
+        } catch (error) {
+            res.status(500)
+            res.json(error)
+        }
+    })
+
+    // Delete Events by Emitter
     router.delete("/:id", (req, res) => {
-        db.removeByEmitter(stringToKey(req.params.id))
-            .then(() => {
-                res.json()
-            })
-            .catch(err => {
-                res.status(500)
-                res.json(err)
-            })
+        try {
+            const predict = (item: BaseT) => emitterKey(item) === stringToKey(req.params.id)
+            db.deleteBy(predict)
+            res.json()
+        } catch (error) {
+            res.status(500)
+            res.json(error)
+        }
     })
 
     // Delete all Events 
-    router.delete("/", (req, res) => {
-        db.removeAll()
-            .then(() => {
-                res.json()
-            })
-            .catch(err => {
-                res.status(500)
-                res.json(err)
-            })
+    router.delete("/", (_, res) => {
+        try {
+            db.deleteAll()
+            res.json()
+        } catch (error) {
+            res.status(500)
+            res.json(error)
+        }
     })
 
     return router
