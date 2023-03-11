@@ -45,7 +45,7 @@ const config: GpioConfig = {
 const triggerCron = (cronId: Cron['id'], db: AppDB, pm: PinManager) => {
 
     const cronSequences = db.cronSequenceLink.db.findBy(cs => cs.cronId === cronId)
-    const sequences = cronSequences.map(cs => db.sequenceCRUD.db.findByKey(cs.sequenceId))
+    const sequences = cronSequences.map(cs => db.sequenceDb.findByKey(cs.sequenceId))
 
     const shouldRun = sequences.filter(s => s && s.active) as BaseSequence[]
     shouldRun.sort((s1, s2) => {
@@ -55,34 +55,35 @@ const triggerCron = (cronId: Cron['id'], db: AppDB, pm: PinManager) => {
         return Date.parse(s1.lastRun) > Date.parse(s2.lastRun) ? 1 : -1
     })
 
-
-    const running = shouldRun.map(s => runSequence(s, pm, db)).filter(result => !(typeof result === 'string'))
-    return Promise.all(running)
-        .catch(err => {
-            console.error(`Failed to update sequences on Cronjob trigger (id:${cronId})`, err)
-        })
+    try {
+        shouldRun.forEach(s => runSequence(s, pm, db))
+    } catch (error) {
+        console.error(`Failed to update sequences on Cronjob trigger (id:${cronId})`, error)
+    }
 }
 
 const runSequence = (s: BaseSequence, pm: PinManager, db: AppDB) => {
     const err = pm.run(s)
     if (err) return err
-    return db.sequenceCRUD.update(s.id, { lastRun: new Date().toISOString() })
+    return db.sequenceDb.update(s.id, { lastRun: new Date().toISOString() })
 }
 
 const activationLogger = (initialStatus: { [key: BaseSequence['id']]: boolean }, db: AppDB) => {
     const status = initialStatus
-    const updater = async (seq: BaseSequence) => {
-        if (seq.active !== status[seq.id]) {
-            status[seq.id] = seq.active
-            await db.sequenceEventCRUD.emit({
-                eventType: seq.active ? "activate" : "deactivate",
-                sequenceId: seq.id,
-                date: new Date().toISOString()
-            })
-        }
+    const updater = async (sequences: BaseSequence[]) => {
+        await Promise.all(sequences.map(seq => {
+            if (seq.active !== status[seq.id]) {
+                status[seq.id] = seq.active
+                return db.sequenceEventCRUD.emit({
+                    eventType: seq.active ? "activate" : "deactivate",
+                    sequenceId: seq.id,
+                    date: new Date().toISOString()
+                })
+            }
+        }))
     }
-    db.sequenceCRUD.addListener('update', updater)
-    return () => db.sequenceCRUD.removeListener('update', updater)
+    db.sequenceDb.addListener('update', updater)
+    return () => db.sequenceDb.removeListener('update', updater)
 }
 
 
@@ -105,13 +106,13 @@ if (process.env.NODE_ENV === 'development') {
     gpio.setMode = (...args) => logArgs('setMode', args)
 
     gpio.promise.read = async (c, ...args) => {
-        // logArgs('read', c, ...args)
+        logArgs('read', c, ...args)
         return !!channelState.get(c)
     }
 
     gpio.promise.write = async (c, bool, ...args) => {
         channelState.set(c, bool)
-        // logArgs('write', c, bool, args)
+        logArgs('write', c, bool, args)
         gpio.emit('change', c, bool)
     }
 }
