@@ -17,36 +17,33 @@ const routes = {
     ACTION: '/action',
 
 }
-const stringToNum = (s: string) => Number(s) || -1
+
 
 export default async (app: Express, io: Server, db: AppDB) => {
     app.use(
         routes.EVENTS.SEQUENCE,
         withAuth,
-        EventRouter(db.sequenceEventDb,
-            (item) => item.sequenceId,
-            String, db.resolvers.resolveSequenceEvent
-        )
+        EventRouter(db.sequenceEventDb, (item) => item.sequenceId, db.resolvers.resolveSequenceEvent)
     )
     app.use(
         routes.SEQUENCE,
         withAuth,
-        CRUDRouter(db.sequenceDb, String, db.resolvers.resolveSequence)
+        CRUDRouter(db.sequenceDb, db.resolvers.resolveSequence)
     )
     app.use(
         routes.CRON,
         withAuth,
-        CRUDRouter(db.cronDb, String, db.resolvers.resolveCron)
+        CRUDRouter(db.cronDb, db.resolvers.resolveCron)
     )
     app.use(
         routes.PIN,
         withAuth,
-        CRUDRouter(db.pinDb, stringToNum)
+        CRUDRouter(db.pinDb, undefined, parseInt)
     )
     app.use(
         routes.LINK,
         withAuth,
-        cronSequenceLink(db.cronSequenceLink, String)
+        cronSequenceLink(db.cronSequenceLink)
     )
     app.use(
         routes.ACTION,

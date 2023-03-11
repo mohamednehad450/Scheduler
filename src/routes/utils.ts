@@ -3,13 +3,12 @@ import { Router, Handler } from 'express'
 import { sign, verify } from 'jsonwebtoken'
 import { AppDB } from '../db'
 import { DbInterface } from "../db/misc"
-import { BaseCron, BaseSequence } from '../db/types'
 
 
 export const CRUDRouter = <K, BaseT, T extends BaseT>(
     db: DbInterface<K, BaseT>,
-    stringToKey: (s: string) => K,
-    resolver?: (item: BaseT) => T
+    resolver?: (item: BaseT) => T,
+    stringToKey?: (s: string) => K,
 ) => {
 
     const router = Router()
@@ -27,7 +26,8 @@ export const CRUDRouter = <K, BaseT, T extends BaseT>(
     // Get object
     router.get('/:id', (req, res) => {
         try {
-            const item = db.findByKey(stringToKey(req.params.id))
+            const id = stringToKey ? stringToKey(req.params.id) : req.params.id as any
+            const item = db.findByKey(id)
             if (item) {
                 res.json(resolver ? resolver(item) : item)
                 return
@@ -59,7 +59,8 @@ export const CRUDRouter = <K, BaseT, T extends BaseT>(
     // Delete an object
     router.delete("/:id", (req, res) => {
         try {
-            db.deleteByKey(stringToKey(req.params.id))
+            const id = stringToKey ? stringToKey(req.params.id) : req.params.id as any
+            db.deleteByKey(id)
             res.json()
         } catch (error) {
             res.status(500)
@@ -70,7 +71,8 @@ export const CRUDRouter = <K, BaseT, T extends BaseT>(
     // Updates an object completely
     router.put('/:id', (req, res) => {
         try {
-            const item = db.update(stringToKey(req.params.id), req.body)
+            const id = stringToKey ? stringToKey(req.params.id) : req.params.id as any
+            const item = db.update(id, req.body)
             if (!item) {
                 res.status(404)
                 res.json({ error: "NOT FOUND" })
@@ -91,7 +93,8 @@ export const CRUDRouter = <K, BaseT, T extends BaseT>(
     // Updates an object
     router.patch('/:id', (req, res) => {
         try {
-            const item = db.update(stringToKey(req.params.id), req.body)
+            const id = stringToKey ? stringToKey(req.params.id) : req.params.id as any
+            const item = db.update(id, req.body)
             if (!item) {
                 res.status(404)
                 res.json({ error: "NOT FOUND" })
@@ -127,9 +130,8 @@ const parsePagination = (page?: any, perPage?: any) => {
 export const EventRouter = <K, BaseT, T>(
     db: DbInterface<K, BaseT>,
     emitterKey: (item: BaseT) => K,
-    stringToKey: (s: string) => K,
-    resolver?: (item: BaseT) => T
-
+    resolver?: (item: BaseT) => T,
+    stringToKey?: (s: string) => K,
 ) => {
 
     const router = Router()
@@ -158,7 +160,8 @@ export const EventRouter = <K, BaseT, T>(
     router.get('/:id', (req, res) => {
         try {
             const pagination = parsePagination(req.query.page, req.query.perPage)
-            const predict = (item: BaseT) => emitterKey(item) === stringToKey(req.params.id)
+            const id = stringToKey ? stringToKey(req.params.id) : req.params.id as any
+            const predict = (item: BaseT) => emitterKey(item) === id
             const events = resolver ?
                 db.findBy(predict, pagination).map(resolver) :
                 db.findBy(predict, pagination)
@@ -179,7 +182,8 @@ export const EventRouter = <K, BaseT, T>(
     // Delete Events by Emitter
     router.delete("/:id", (req, res) => {
         try {
-            const predict = (item: BaseT) => emitterKey(item) === stringToKey(req.params.id)
+            const id = stringToKey ? stringToKey(req.params.id) : req.params.id as any
+            const predict = (item: BaseT) => emitterKey(item) === id
             db.deleteBy(predict)
             res.json()
         } catch (error) {
@@ -203,13 +207,13 @@ export const EventRouter = <K, BaseT, T>(
 
 }
 
-export const cronSequenceLink = (cronSequence: AppDB['cronSequenceLink'], stringToKey: (s: string) => BaseSequence['id'] | BaseCron['id']) => {
+export const cronSequenceLink = (cronSequence: AppDB['cronSequenceLink']) => {
 
     const router = Router()
     // Link a Sequence to a list of crons
     router.post('/sequence/:id', (req, res) => {
         try {
-            const sequence = cronSequence.linkSequence(stringToKey(req.params.id), req.body)
+            const sequence = cronSequence.linkSequence(req.params.id, req.body)
             if (!sequence) {
                 res.status(404)
                 res.json({ error: "NOT FOUND" })
@@ -229,7 +233,7 @@ export const cronSequenceLink = (cronSequence: AppDB['cronSequenceLink'], string
     // Link a cron to a list of Sequences
     router.post('/cron/:id', (req, res) => {
         try {
-            const cron = cronSequence.linkCron(stringToKey(req.params.id), req.body)
+            const cron = cronSequence.linkCron(req.params.id, req.body)
             if (!cron) {
                 res.status(404)
                 res.json({ error: "NOT FOUND" })
