@@ -1,22 +1,26 @@
 import { sequenceValidators, cronValidators, pinsValidators, sequenceEventsValidators } from "./validators"
 import SequenceEventCRUD from "./SequenceEventCRUD"
-import SequenceCRUD from "./SequenceCRUD"
 import AdminCRUD from "./AdminCRUD"
-import CronCRUD from "./CronCRUD"
-import PinCRUD from "./PinsCRUD"
 import JSONDb from "./JSONDb"
 import CronSequenceLink from "./CronSequenceLink"
 import { cronCSLink, pinSequenceLink, sequenceCSLink, sequenceEventLink } from "./dbLinks"
-import { Admin, BaseCron, BaseSequence, BaseSequenceEvent, CronSequence, Pin } from "./types"
+import { Admin, BaseCron, BaseSequence, BaseSequenceEvent, Cron, CronSequence, Pin, Sequence } from "./types"
 import { channelsExistsValidator, cronExistsValidator, sequenceExistsValidator } from "./foreignKeysValidators"
+import { resolveCron, resolveSequence } from "./resolvers"
+
 
 type AppDB = {
-    sequenceCRUD: SequenceCRUD,
-    pinCRUD: PinCRUD,
-    cronCRUD: CronCRUD,
+    sequenceDb: JSONDb<BaseSequence['id'], BaseSequence>,
+    pinDb: JSONDb<Pin['channel'], Pin>,
+    cronDb: JSONDb<BaseCron['id'], BaseCron>,
+    cronSequenceDb: JSONDb<void, CronSequence>,
     adminCRUD: AdminCRUD,
     sequenceEventCRUD: SequenceEventCRUD
-    cronSequenceLink: CronSequenceLink
+    cronSequenceLink: CronSequenceLink,
+    resolvers: {
+        resolveCron: (base: BaseCron) => Cron,
+        resolveSequence: (base: BaseSequence) => Sequence
+    }
 }
 
 const dbFolder = process.env.DATABASE_FOLDER || "database"
@@ -58,21 +62,23 @@ const initDb = async (): Promise<AppDB> => {
     cronSequenceDb.addForeignKeyValidator(cs => cronValidator(cs.cronId))
 
 
-    const sequenceCRUD = new SequenceCRUD(sequenceDb, cronDb, cronSequenceDb)
-    const cronCRUD = new CronCRUD(cronDb, sequenceDb, cronSequenceDb)
-    const cronSequenceLink = new CronSequenceLink(cronSequenceDb, sequenceCRUD, cronCRUD)
-    const pinCRUD = new PinCRUD(pinDb, sequenceCRUD)
+    const cronSequenceLink = new CronSequenceLink(cronSequenceDb, sequenceDb, cronDb)
     const adminCRUD = new AdminCRUD(adminDb)
     const sequenceEventCRUD = new SequenceEventCRUD(sequenceEventDb, sequenceDb)
 
 
     return {
-        sequenceCRUD,
-        pinCRUD,
-        cronCRUD,
+        sequenceDb,
+        pinDb,
+        cronDb,
+        cronSequenceDb,
         adminCRUD,
         sequenceEventCRUD,
-        cronSequenceLink
+        cronSequenceLink,
+        resolvers: {
+            resolveCron: resolveCron(cronSequenceDb, sequenceDb),
+            resolveSequence: resolveSequence(cronSequenceDb, cronDb)
+        }
     }
 }
 
