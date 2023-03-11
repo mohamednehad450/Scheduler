@@ -2,116 +2,112 @@ import { compare } from 'bcrypt'
 import { Router, Handler } from 'express'
 import { sign, verify } from 'jsonwebtoken'
 import { AppDB } from '../db'
-import { CRUD, EventCRUD, } from "../db/misc"
+import { DbInterface, EventCRUD, } from "../db/misc"
 import { BaseCron, BaseSequence } from '../db/types'
 
 
-export const CRUDRouter = <K, T>(db: CRUD<K, T>, stringToKey: (s: string) => K) => {
+
+export const CRUDRouter = <K, BaseT, T extends BaseT>(
+    db: DbInterface<K, BaseT>,
+    stringToKey: (s: string) => K,
+    resolver?: (item: BaseT) => T
+) => {
 
     const router = Router()
     // List all objects
     router.get('/', (req, res) => {
-        db.list()
-            .then(ms => {
-                res.json(ms)
-            })
-            .catch(err => {
-                res.status(500)
-                res.json(err)
-            })
+        try {
+            const list = resolver ? db.findAll().map(resolver) : db.findAll()
+            res.json(list)
+        } catch (error) {
+            res.status(500)
+            res.json(error)
+        }
     })
 
     // Get object
     router.get('/:id', (req, res) => {
-        db.get(stringToKey(req.params.id))
-            .then(m => {
-                if (m) {
-                    res.json(m)
-                    return
-                }
-                res.status(404)
-                res.json({ error: "NOT FOUND" })
-            })
-            .catch(err => {
-                res.status(500)
-                res.json(err)
-            })
+        try {
+            const item = db.findByKey(stringToKey(req.params.id))
+            if (item) {
+                res.json(resolver ? resolver(item) : item)
+                return
+            }
+            res.status(404)
+            res.json({ error: "NOT FOUND" })
+        } catch (error) {
+            res.status(500)
+            res.json(error)
+        }
     })
 
     // Create new object
     router.post('/', (req, res) => {
-        db.insert(req.body)
-            .then(m => {
-                res.json(m)
-            })
-            .catch(err => {
-                // TODO: Validation error
-                if (err.isJoi) {
-                    res.status(400)
-                    res.json({ ...err, error: "VALIDATION ERROR" })
-                    return
-                }
-                res.status(500)
-                res.json(err)
-            })
+        try {
+            const item = db.insert(req.body)
+            res.json(resolver ? resolver(item) : item)
+        } catch (error: any) {
+            if (error.isJoi) {
+                res.status(400)
+                res.json({ ...error, error: "VALIDATION ERROR" })
+                return
+            }
+            res.status(500)
+            res.json(error)
+        }
     })
 
     // Delete an object
     router.delete("/:id", (req, res) => {
-        db.remove(stringToKey(req.params.id))
-            .then(() => {
-                res.json()
-            })
-            .catch(err => {
-                res.status(500)
-                res.json(err)
-            })
+        try {
+            db.deleteByKey(stringToKey(req.params.id))
+            res.json()
+        } catch (error) {
+            res.status(500)
+            res.json(error)
+        }
     })
 
     // Updates an object completely
     router.put('/:id', (req, res) => {
-        db.set(stringToKey(req.params.id), req.body)
-            .then(m => {
-                if (!m) {
-                    res.status(404)
-                    res.json({ error: "NOT FOUND" })
-                    return
-                }
-                res.json(m)
-            })
-            .catch(err => {
-                // TODO: Validation error
-                if (err.isJoi) {
-                    res.status(400)
-                    res.json({ ...err, error: "VALIDATION ERROR" })
-                    return
-                }
-                res.status(500)
-                res.json(err)
-            })
+        try {
+            const item = db.update(stringToKey(req.params.id), req.body)
+            if (!item) {
+                res.status(404)
+                res.json({ error: "NOT FOUND" })
+                return
+            }
+            res.json(resolver ? resolver(item) : item)
+        } catch (error: any) {
+            if (error.isJoi) {
+                res.status(400)
+                res.json({ ...error, error: "VALIDATION ERROR" })
+                return
+            }
+            res.status(500)
+            res.json(error)
+        }
     })
 
     // Updates an object
     router.patch('/:id', (req, res) => {
-        db.update(stringToKey(req.params.id), req.body)
-            .then(m => {
-                if (!m) {
-                    res.status(404)
-                    res.json({ error: "NOT FOUND" })
-                    return
-                }
-                res.json(m)
-            })
-            .catch(err => {
-                // TODO: Validation error
-                if (err.isJoi) {
-                    res.status(400)
-                    res.json({ ...err, error: "VALIDATION ERROR" })
-                    return
-                }
-                res.status(500)
-                res.json(err)
-            })
+        try {
+            const item = db.update(stringToKey(req.params.id), req.body)
+            if (!item) {
+                res.status(404)
+                res.json({ error: "NOT FOUND" })
+                return
+            }
+            res.json(resolver ? resolver(item) : item)
+        } catch (error: any) {
+            if (error.isJoi) {
+                res.status(400)
+                res.json({ ...error, error: "VALIDATION ERROR" })
+                return
+            }
+            res.status(500)
+            res.json(error)
+        }
     })
 
     return router
@@ -187,50 +183,48 @@ export const EventRouter = <K, T>(db: EventCRUD<K, T>, stringToKey: (s: string) 
 
 }
 
-export const cronSequenceLink = (db: AppDB['cronSequenceLink'], stringToKey: (s: string) => BaseSequence['id'] | BaseCron['id']) => {
+export const cronSequenceLink = (cronSequence: AppDB['cronSequenceLink'], stringToKey: (s: string) => BaseSequence['id'] | BaseCron['id']) => {
 
     const router = Router()
     // Link a Sequence to a list of crons
     router.post('/sequence/:id', (req, res) => {
-        db.linkSequence(stringToKey(req.params.id), req.body)
-            .then((sequence) => {
-                if (!sequence) {
-                    res.status(404)
-                    res.json({ error: "NOT FOUND" })
-                    return
-                }
-                res.json(sequence)
-            })
-            .catch(err => {
-                if (err.isJoi) {
-                    res.status(400)
-                    res.json({ ...err, error: "VALIDATION ERROR" })
-                    return
-                }
-                res.status(500)
-                res.json(err)
-            })
+        try {
+            const sequence = cronSequence.linkSequence(stringToKey(req.params.id), req.body)
+            if (!sequence) {
+                res.status(404)
+                res.json({ error: "NOT FOUND" })
+                return
+            }
+            res.json(sequence)
+        } catch (error: any) {
+            if (error.isJoi) {
+                res.status(400)
+                res.json({ ...error, error: "VALIDATION ERROR" })
+                return
+            }
+            res.status(500)
+            res.json(error)
+        }
     })
     // Link a cron to a list of Sequences
     router.post('/cron/:id', (req, res) => {
-        db.linkCron(stringToKey(req.params.id), req.body)
-            .then((cron) => {
-                if (!cron) {
-                    res.status(404)
-                    res.json({ error: "NOT FOUND" })
-                    return
-                }
-                res.json(cron)
-            })
-            .catch(err => {
-                if (err.isJoi) {
-                    res.status(400)
-                    res.json({ ...err, error: "VALIDATION ERROR" })
-                    return
-                }
-                res.status(500)
-                res.json(err)
-            })
+        try {
+            const cron = cronSequence.linkCron(stringToKey(req.params.id), req.body)
+            if (!cron) {
+                res.status(404)
+                res.json({ error: "NOT FOUND" })
+                return
+            }
+            res.json(cron)
+        } catch (error: any) {
+            if (error.isJoi) {
+                res.status(400)
+                res.json({ ...error, error: "VALIDATION ERROR" })
+                return
+            }
+            res.status(500)
+            res.json(error)
+        }
     })
 
 

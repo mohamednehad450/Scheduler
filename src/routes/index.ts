@@ -21,9 +21,9 @@ const stringToNum = (s: string) => Number(s) || -1
 
 export default async (app: Express, io: Server, db: AppDB) => {
     app.use(routes.EVENTS.SEQUENCE, withAuth, EventRouter(db.sequenceEventCRUD, String))
-    app.use(routes.SEQUENCE, withAuth, CRUDRouter(db.sequenceCRUD, String))
-    app.use(routes.PIN, withAuth, CRUDRouter(db.pinCRUD, stringToNum))
-    app.use(routes.CRON, withAuth, CRUDRouter(db.cronCRUD, String))
+    app.use(routes.SEQUENCE, withAuth, CRUDRouter(db.sequenceDb, String, db.resolvers.resolveSequence))
+    app.use(routes.CRON, withAuth, CRUDRouter(db.cronDb, String, db.resolvers.resolveCron))
+    app.use(routes.PIN, withAuth, CRUDRouter(db.pinDb, stringToNum))
     app.use(routes.LINK, withAuth, cronSequenceLink(db.cronSequenceLink, String))
     app.use(routes.ACTION, withAuth, await actions(io, db))
     app.use(routes.AUTH, authCRUD(db.adminCRUD))
