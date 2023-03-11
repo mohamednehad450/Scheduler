@@ -26,5 +26,5 @@ export default async (app: Express, io: Server, db: AppDB) => {
     app.use(routes.PIN, withAuth, CRUDRouter(db.pinDb, stringToNum))
     app.use(routes.LINK, withAuth, cronSequenceLink(db.cronSequenceLink, String))
     app.use(routes.ACTION, withAuth, await actions(io, db))
-    app.use(routes.AUTH, authCRUD(db.adminCRUD))
+    app.use(routes.AUTH, authCRUD(db.adminManager))
 }

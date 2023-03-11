@@ -1,6 +1,6 @@
 import { sequenceValidators, cronValidators, pinsValidators, sequenceEventsValidators } from "./validators"
 import SequenceEventCRUD from "./SequenceEventCRUD"
-import AdminCRUD from "./AdminCRUD"
+import AdminManager from "./AdminManager"
 import JSONDb from "./JSONDb"
 import CronSequenceLink from "./CronSequenceLink"
 import { cronCSLink, pinSequenceLink, sequenceCSLink, sequenceEventLink } from "./dbLinks"
@@ -14,7 +14,7 @@ type AppDB = {
     pinDb: JSONDb<Pin['channel'], Pin>,
     cronDb: JSONDb<BaseCron['id'], BaseCron>,
     cronSequenceDb: JSONDb<void, CronSequence>,
-    adminCRUD: AdminCRUD,
+    adminManager: AdminManager,
     sequenceEventCRUD: SequenceEventCRUD
     cronSequenceLink: CronSequenceLink,
     resolvers: {
@@ -63,7 +63,7 @@ const initDb = async (): Promise<AppDB> => {
 
 
     const cronSequenceLink = new CronSequenceLink(cronSequenceDb, sequenceDb, cronDb)
-    const adminCRUD = new AdminCRUD(adminDb)
+    const adminManager = new AdminManager(adminDb)
     const sequenceEventCRUD = new SequenceEventCRUD(sequenceEventDb, sequenceDb)
 
 
@@ -72,7 +72,7 @@ const initDb = async (): Promise<AppDB> => {
         pinDb,
         cronDb,
         cronSequenceDb,
-        adminCRUD,
+        adminManager,
         sequenceEventCRUD,
         cronSequenceLink,
         resolvers: {

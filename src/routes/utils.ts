@@ -232,13 +232,13 @@ export const cronSequenceLink = (cronSequence: AppDB['cronSequenceLink'], string
 }
 
 
-export const authCRUD = (db: AppDB['adminCRUD']) => {
+export const authCRUD = (db: AppDB['adminManager']) => {
 
     const router = Router()
 
     router.post("/login", async (req, res) => {
 
-        if (!(await db.isRegistered())) {
+        if (!db.isRegistered()) {
             res.status(409).json({ error: "Admin account not registered" })
             return
         }
@@ -250,7 +250,7 @@ export const authCRUD = (db: AppDB['adminCRUD']) => {
             return
         }
 
-        const admin = await db.getAdmin(username)
+        const admin = db.getAdmin(username)
 
         if (!admin) {
             res.status(404).json({ username: "username not found" })
@@ -281,7 +281,7 @@ export const authCRUD = (db: AppDB['adminCRUD']) => {
 
     router.post('/register', async (req, res) => {
 
-        if (await db.isRegistered()) {
+        if (db.isRegistered()) {
             res.status(409).json({ error: "Admin account already registered" })
             return
         }
