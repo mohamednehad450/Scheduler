@@ -1,5 +1,6 @@
 import EventEmitter from "events"
 import { ObjectSchema } from "joi"
+import { existsSync, readFileSync } from "node:fs"
 
 type Predict<T> = (item: T) => boolean
 type Compare<T> = (itemA: T, itemB: T) => number
@@ -22,7 +23,7 @@ type ObjectValidators<T> = {
 
 
 type ForeignDbLink<K, T, FK, FT> = {
-    db: Db<FK, FT>,
+    db: DbInterface<FK, FT>,
     predict: Predict<{
         foreignItem: FT,
         key: K
@@ -33,7 +34,8 @@ type ForeignDbLink<K, T, FK, FT> = {
 }
 
 
-interface Db<K, T> {
+
+interface DbInterface<K, T> {
     setDefaultSort: (sort?: Compare<T>) => void
     linkForeignDb: <FK, FT>(link: ForeignDbLink<K, T, FK, FT>) => void
     addForeignKeyValidator: (validator: (item: T) => void) => void
@@ -51,13 +53,36 @@ interface Db<K, T> {
     exists: (key: K) => boolean
 }
 
-interface CRUD<K, T> extends EventEmitter {
-    insert: (obj: any) => Promise<T>
-    get: (id: K,) => Promise<T | undefined>
-    set: (id: K, obj: any) => Promise<T | undefined>
-    update: (id: K, obj: any,) => Promise<T | undefined>
-    remove: (id: K) => Promise<void>
-    list: (pagination?: Pagination) => Promise<T[]>
+interface DbEvents<K, T> {
+    update: (item: T[]) => void
+    insert: (item: T) => void
+    remove: (key: K[]) => void
+}
+abstract class Db<K, T> extends EventEmitter {
+    emit<E extends keyof DbEvents<K, T>>(event: E, ...args: Parameters<DbEvents<K, T>[E]>) {
+        return super.emit(event, ...args);
+    }
+
+    on<E extends keyof DbEvents<K, T>>(
+        event: E,
+        listener: (...args: Parameters<DbEvents<K, T>[E]>) => void
+    ) {
+        return super.on(event, listener as any);
+    }
+
+    removeListener<E extends keyof DbEvents<K, T>>(
+        event: E,
+        listener: (...args: Parameters<DbEvents<K, T>[E]>) => void
+    ) {
+        return super.removeListener(event, listener as any)
+    }
+
+    addListener<E extends keyof DbEvents<K, T>>(
+        event: E,
+        listener: (...args: Parameters<DbEvents<K, T>[E]>) => void
+    ) {
+        return super.addListener(event, listener as any);
+    }
 }
 
 interface EventCRUD<K, T> {
@@ -71,14 +96,45 @@ interface EventCRUD<K, T> {
 }
 
 
+
+const parseDbFile = <K, T>(file: string, keyExtractor: (item: T) => K, loadValidator?: ObjectSchema<T>): Map<K, T> => {
+
+    if (!existsSync(file)) throw new Error(`File: ${file}, doesn't exists`)
+
+    const content = readFileSync(file, 'utf-8')
+
+    const arr = JSON.parse(content)
+    if (!Array.isArray(arr)) throw Error('invalid JSONDb file')
+
+    const map = new Map<K, T>()
+    if (!loadValidator) {
+        arr.map(item => map.set(keyExtractor(item), item))
+        return map
+    }
+
+    // Load if valid
+    for (const item of arr) {
+        const { error, value } = loadValidator.validate(item)
+        !error && value &&
+            map.set(keyExtractor(value), value)
+    }
+
+    return map
+}
+
+
 export type {
     ObjectValidators,
     Predict,
     Compare,
     Pagination,
     PageInfo,
-    Db,
-    CRUD,
+    DbInterface,
+    DbEvents,
     EventCRUD,
     ForeignDbLink
+}
+export {
+    Db,
+    parseDbFile,
 }
