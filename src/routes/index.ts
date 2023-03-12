@@ -5,7 +5,7 @@ import actions from './actions'
 import AuthRouter, { withAuth } from './AuthRouter'
 import CRUDRouter from './CRUDRouter'
 import EventRouter from './EventRouter'
-import { cronSequenceLink, } from './utils'
+import CronSequenceRouter from './CronSequenceRouter'
 
 const routes = {
     SEQUENCE: '/sequence',
@@ -46,7 +46,7 @@ export default async (app: Express, io: Server, db: AppDB) => {
     app.use(
         routes.LINK,
         withAuth,
-        cronSequenceLink(db.cronSequenceLink)
+        CronSequenceRouter(db.cronSequenceLink)
     )
     app.use(
         routes.ACTION,
