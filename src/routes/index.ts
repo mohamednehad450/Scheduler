@@ -2,7 +2,8 @@ import { Express } from 'express'
 import { Server } from 'socket.io'
 import { AppDB } from '../db'
 import actions from './actions'
-import { authCRUD, cronSequenceLink, CRUDRouter, EventRouter, withAuth } from './utils'
+import CRUDRouter from './CRUDRouter'
+import { authCRUD, cronSequenceLink, EventRouter, withAuth } from './utils'
 
 const routes = {
     SEQUENCE: '/sequence',
