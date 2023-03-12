@@ -2,9 +2,6 @@ import { Router } from "express"
 import { DbInterface } from "../db/misc"
 
 
-
-
-
 const PER_PAGE = 20
 const parsePagination = (page?: any, perPage?: any) => {
     const p = page ? parseInt(page) : 1
@@ -14,7 +11,6 @@ const parsePagination = (page?: any, perPage?: any) => {
         perPage: isNaN(perP) ? perP : PER_PAGE
     }
 }
-
 
 
 export default function EventRouter<K, BaseT, T>(
@@ -94,5 +90,4 @@ export default function EventRouter<K, BaseT, T>(
     })
 
     return router
-
 }
