@@ -2,9 +2,10 @@ import { Express } from 'express'
 import { Server } from 'socket.io'
 import { AppDB } from '../db'
 import actions from './actions'
+import AuthRouter, { withAuth } from './AuthRouter'
 import CRUDRouter from './CRUDRouter'
 import EventRouter from './EventRouter'
-import { authCRUD, cronSequenceLink, withAuth } from './utils'
+import { cronSequenceLink, } from './utils'
 
 const routes = {
     SEQUENCE: '/sequence',
@@ -54,6 +55,6 @@ export default async (app: Express, io: Server, db: AppDB) => {
     )
     app.use(
         routes.AUTH,
-        authCRUD(db.adminManager)
+        AuthRouter(db.adminManager)
     )
 }
