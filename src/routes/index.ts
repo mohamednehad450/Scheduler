@@ -3,7 +3,8 @@ import { Server } from 'socket.io'
 import { AppDB } from '../db'
 import actions from './actions'
 import CRUDRouter from './CRUDRouter'
-import { authCRUD, cronSequenceLink, EventRouter, withAuth } from './utils'
+import EventRouter from './EventRouter'
+import { authCRUD, cronSequenceLink, withAuth } from './utils'
 
 const routes = {
     SEQUENCE: '/sequence',
