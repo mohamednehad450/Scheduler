@@ -33,9 +33,6 @@ type ForeignDbLink<K, T, FK, FT> = {
 };
 
 interface DbInterface<K, T> {
-  setDefaultSort: (sort?: Compare<T>) => void;
-  linkForeignDb: <FK, FT>(link: ForeignDbLink<K, T, FK, FT>) => void;
-  addForeignKeyValidator: (validator: (item: T) => void) => void;
   insert: (obj: T) => T;
   update: (id: K, obj: Partial<T>) => T | undefined;
   updateBy: (predict: Predict<T>, updater: Updater<T>) => T[];
@@ -55,7 +52,7 @@ interface DbEvents<K, T> {
   insert: (item: T) => void;
   remove: (key: K[]) => void;
 }
-abstract class Db<K, T> extends EventEmitter {
+abstract class Db<K, T> extends EventEmitter implements DbInterface<K, T> {
   emit<E extends keyof DbEvents<K, T>>(
     event: E,
     ...args: Parameters<DbEvents<K, T>[E]>
@@ -83,6 +80,21 @@ abstract class Db<K, T> extends EventEmitter {
   ) {
     return super.addListener(event, listener as any);
   }
+  abstract setDefaultSort: (sort?: Compare<T>) => void;
+  abstract linkForeignDb: <FK, FT>(link: ForeignDbLink<K, T, FK, FT>) => void;
+  abstract addForeignKeyValidator: (validator: (item: T) => void) => void;
+  abstract insert: (obj: T) => T;
+  abstract update: (id: K, obj: Partial<T>) => T | undefined;
+  abstract updateBy: (predict: Predict<T>, updater: Updater<T>) => T[];
+  abstract findByKey: (key: K) => T | undefined;
+  abstract findBy: (predict: Predict<T>, page?: Pagination) => T[];
+  abstract findAll: (page?: Pagination) => T[];
+  abstract deleteBy: (predict: Predict<T>) => void;
+  abstract deleteByKey: (key: K) => void;
+  abstract deleteAll: () => void;
+  abstract count: () => number;
+  abstract countBy: (predict: Predict<T>) => number;
+  abstract exists: (key: K) => boolean;
 }
 
 const parseDbFile = <K, T>(
