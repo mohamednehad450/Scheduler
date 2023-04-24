@@ -1,0 +1,239 @@
+{
+  "version": "5",
+  "dialect": "sqlite",
+  "id": "40ea8289-eb07-431b-bb4d-9695b93f5b20",
+  "prevId": "c8505d6a-b366-412d-89d4-a48775d1cc77",
+  "tables": {
+    "cron_sequence": {
+      "name": "cron_sequence",
+      "columns": {
+        "cron_id": {
+          "name": "cron_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sequence_id": {
+          "name": "sequence_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "cron_sequence_cron_id_crons_id_fk": {
+          "name": "cron_sequence_cron_id_crons_id_fk",
+          "tableFrom": "cron_sequence",
+          "tableTo": "crons",
+          "columnsFrom": ["cron_id"],
+          "columnsTo": ["id"]
+        },
+        "cron_sequence_sequence_id_sequences_id_fk": {
+          "name": "cron_sequence_sequence_id_sequences_id_fk",
+          "tableFrom": "cron_sequence",
+          "tableTo": "sequences",
+          "columnsFrom": ["sequence_id"],
+          "columnsTo": ["id"]
+        }
+      },
+      "compositePrimaryKeys": {}
+    },
+    "crons": {
+      "name": "crons",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "cron": {
+          "name": "cron",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {}
+    },
+    "orders": {
+      "name": "orders",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "channel": {
+          "name": "channel",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "duration": {
+          "name": "duration",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "offset": {
+          "name": "offset",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "sequence_id": {
+          "name": "sequence_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "orders_channel_pins_channel_fk": {
+          "name": "orders_channel_pins_channel_fk",
+          "tableFrom": "orders",
+          "tableTo": "pins",
+          "columnsFrom": ["channel"],
+          "columnsTo": ["channel"]
+        },
+        "orders_sequence_id_sequences_id_fk": {
+          "name": "orders_sequence_id_sequences_id_fk",
+          "tableFrom": "orders",
+          "tableTo": "sequences",
+          "columnsFrom": ["sequence_id"],
+          "columnsTo": ["id"]
+        }
+      },
+      "compositePrimaryKeys": {}
+    },
+    "pins": {
+      "name": "pins",
+      "columns": {
+        "channel": {
+          "name": "channel",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "label": {
+          "name": "label",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "on_state": {
+          "name": "on_state",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {}
+    },
+    "sequences": {
+      "name": "sequences",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "name": {
+          "name": "name",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "last_run": {
+          "name": "last_run",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "active": {
+          "name": "active",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "('deactivated')"
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {},
+      "compositePrimaryKeys": {}
+    },
+    "sequences_events": {
+      "name": "sequences_events",
+      "columns": {
+        "id": {
+          "name": "id",
+          "type": "integer",
+          "primaryKey": true,
+          "notNull": true,
+          "autoincrement": true
+        },
+        "date": {
+          "name": "date",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        },
+        "sequence_id": {
+          "name": "sequence_id",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "event_type": {
+          "name": "event_type",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "sequences_events_sequence_id_sequences_id_fk": {
+          "name": "sequences_events_sequence_id_sequences_id_fk",
+          "tableFrom": "sequences_events",
+          "tableTo": "sequences",
+          "columnsFrom": ["sequence_id"],
+          "columnsTo": ["id"]
+        }
+      },
+      "compositePrimaryKeys": {}
+    }
+  },
+  "enums": {},
+  "_meta": {
+    "schemas": {},
+    "tables": {},
+    "columns": {}
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "version": "5",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "5",
+      "when": 1681101861957,
+      "tag": "0000_natural_russian"
+    },
+    {
+      "idx": 1,
+      "version": "5",
+      "when": 1681101875543,
+      "tag": "0001_living_kulan_gath"
+    },
+    {
+      "idx": 2,
+      "version": "5",
+      "when": 1681101896571,
+      "tag": "0002_awesome_inertia"
+    },
+    {
+      "idx": 3,
+      "version": "5",
+      "when": 1681101934905,
+      "tag": "0003_motionless_maestro"
+    },
+    {
+      "idx": 4,
+      "version": "5",
+      "when": 1681101958119,
+      "tag": "0004_milky_lord_tyger"
+    },
+    {
+      "idx": 5,
+      "version": "5",
+      "when": 1681101975962,
+      "tag": "0005_tranquil_oracle"
+    },
+    {
+      "idx": 6,
+      "version": "5",
+      "when": 1681101990354,
+      "tag": "0006_skinny_chat"
+    }
+  ]
+}
