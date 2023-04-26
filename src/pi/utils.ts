@@ -1,10 +1,50 @@
-import { AppDB } from "../db";
-import { BaseSequence, Cron } from "../db/types";
+import { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import {
+  Cron,
+  Order,
+  Sequence,
+  cronSequences,
+  crons,
+  orders,
+  sequences,
+  sequencesEvents,
+} from "../drizzle/schema";
 import PinManager from "./PinManager";
 import gpio from "rpi-gpio";
+import { and, eq } from "drizzle-orm";
+import { z } from "zod";
+import { sequenceSchema } from "../drizzle/validators";
+import { SequenceEmitter } from "../routes/emitters";
 
 type GpioConfig = {
-  validPins: number[];
+  validPins: readonly [
+    3,
+    5,
+    7,
+    8,
+    10,
+    11,
+    12,
+    13,
+    15,
+    16,
+    18,
+    19,
+    21,
+    22,
+    23,
+    24,
+    26,
+    29,
+    31,
+    32,
+    33,
+    35,
+    36,
+    37,
+    38,
+    40
+  ];
   boardMode: typeof gpio.promise.MODE_BCM;
 };
 
@@ -12,19 +52,43 @@ const config: GpioConfig = {
   validPins: [
     3, 5, 7, 8, 10, 11, 12, 13, 15, 16, 18, 19, 21, 22, 23, 24, 26, 29, 31, 32,
     33, 35, 36, 37, 38, 40,
-  ],
+  ] as const,
   boardMode: gpio.MODE_RPI,
 };
 
-const triggerCron = (cronId: Cron["id"], db: AppDB, pm: PinManager) => {
-  const cronSequences = db.cronSequenceLink.db.findBy(
-    (cs) => cs.cronId === cronId
-  );
-  const sequences = cronSequences.map((cs) =>
-    db.sequenceDb.findByKey(cs.sequenceId)
-  );
+const triggerCron = (
+  cronId: Cron["id"],
+  db: BetterSQLite3Database,
+  pm: PinManager
+) => {
+  const sequenceIds = db
+    .select({
+      id: sequences.id,
+    })
+    .from(cronSequences)
+    .leftJoin(crons, eq(cronSequences.cronId, crons.id))
+    .leftJoin(sequences, eq(cronSequences.sequenceId, sequences.id))
+    .where(and(eq(crons.id, cronId), eq(sequences.active, "activated")))
+    .all();
 
-  const shouldRun = sequences.filter((s) => s && s.active) as BaseSequence[];
+  const shouldRun = sequenceIds.map(({ id }) => {
+    return {
+      ...db
+        .select()
+        .from(sequences)
+        .where(eq(sequences.id, id || -1))
+        .get(),
+      orders: db
+        .select({
+          duration: orders.duration,
+          offset: orders.offset,
+          channel: orders.channel,
+        })
+        .from(orders)
+        .where(eq(orders.sequenceId, id || -1))
+        .all(),
+    };
+  });
   shouldRun.sort((s1, s2) => {
     if (!s1.lastRun && s2.lastRun) return 0;
     if (!s1.lastRun) return 1;
@@ -42,33 +106,43 @@ const triggerCron = (cronId: Cron["id"], db: AppDB, pm: PinManager) => {
   }
 };
 
-const runSequence = (s: BaseSequence, pm: PinManager, db: AppDB) => {
+const runSequence = (
+  s: Sequence & {
+    orders: { duration: number; offset: number; channel: number }[];
+  },
+  pm: PinManager,
+  db: BetterSQLite3Database
+) => {
   const err = pm.run(s);
   if (err) return err;
-  return db.sequenceDb.update(s.id, { lastRun: new Date().toISOString() });
+  return db
+    .update(sequences)
+    .set({ lastRun: new Date().toISOString() })
+    .where(eq(sequences.id, s.id || -1))
+    .run();
 };
 
 const activationLogger = (
-  initialStatus: { [key: BaseSequence["id"]]: boolean },
-  db: AppDB
+  initialStatus: { [key: Sequence["id"]]: Sequence["active"] },
+  db: BetterSQLite3Database,
+  sequenceEmitter: SequenceEmitter
 ) => {
   const status = initialStatus;
-  const updater = async (sequences: BaseSequence[]) => {
-    await Promise.all(
-      sequences.map((seq) => {
-        if (seq.active !== status[seq.id]) {
-          status[seq.id] = seq.active;
-          return db.sequenceEventDb.insert({
-            eventType: seq.active ? "activate" : "deactivate",
-            sequenceId: seq.id,
-            date: new Date().toISOString(),
-          } as any);
-        }
-      })
-    );
+  const updater = async (sequence: Sequence) => {
+    if (sequence.active !== status[sequence.id]) {
+      status[sequence.id] = sequence.active;
+      return db
+        .insert(sequencesEvents)
+        .values({
+          eventType: sequence.active ? "activate" : "deactivate",
+          sequenceId: sequence.id,
+          date: new Date().toISOString(),
+        })
+        .run();
+    }
   };
-  db.sequenceDb.addListener("update", updater);
-  return () => db.sequenceDb.removeListener("update", updater);
+  sequenceEmitter.addListener("update", updater);
+  return () => sequenceEmitter.removeListener("update", updater);
 };
 
 function logArgs(func: string, ...args: any) {

@@ -1,15 +1,15 @@
 import { CronJob } from "cron";
-import { BaseCron } from "../db/types";
+import { Cron } from "../drizzle/schema";
 
 class CronManager {
   jobs: {
-    [key: BaseCron["id"]]: { cron: string; job: CronJob };
+    [key: Cron["id"]]: { cron: string; job: CronJob };
   } = {};
-  callback: (id: BaseCron["id"]) => void;
+  callback: (id: Cron["id"]) => void;
 
   constructor(
-    crons: { id: BaseCron["id"]; cron: BaseCron["cron"] }[],
-    callback: (id: BaseCron["id"]) => void
+    crons: { id: Cron["id"]; cron: Cron["cron"] }[],
+    callback: (id: Cron["id"]) => void
   ) {
     this.callback = callback;
     this.jobs = crons.reduce((acc, { id, cron }) => {
@@ -28,7 +28,7 @@ class CronManager {
     [...Object.keys(this.jobs)].forEach((id: any) => this.jobs[id].job.start());
   };
 
-  start = (id: BaseCron["id"]) => {
+  start = (id: Cron["id"]) => {
     if (!this.jobs[id]) return;
     this.jobs[id].job.start();
   };
@@ -37,12 +37,12 @@ class CronManager {
     [...Object.keys(this.jobs)].map((id: any) => this.jobs[id].job.stop());
   };
 
-  stop = (id: BaseCron["id"]) => {
+  stop = (id: Cron["id"]) => {
     if (!this.jobs[id]) return;
     this.jobs[id].job.stop();
   };
 
-  insert = (id: BaseCron["id"], cron: BaseCron["cron"]) => {
+  insert = (id: Cron["id"], cron: Cron["cron"]) => {
     if (this.jobs[id]) return;
     const job = {
       cron,
@@ -51,12 +51,12 @@ class CronManager {
     this.jobs[id] = job;
   };
 
-  remove = (id: BaseCron["id"]) => {
+  remove = (id: Cron["id"]) => {
     this.stop(id);
     delete this.jobs[id];
   };
 
-  update = (id: BaseCron["id"], cron: BaseCron["cron"]) => {
+  update = (id: Cron["id"], cron: Cron["cron"]) => {
     if (!this.jobs[id]) return;
     const job = this.jobs[id];
 

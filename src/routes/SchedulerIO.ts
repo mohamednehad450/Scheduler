@@ -1,7 +1,8 @@
-import { AppDB } from "../db";
 import { Scheduler } from "../pi";
 import { Server, Socket } from "socket.io";
 import { verify } from "jsonwebtoken";
+import { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { CronEmitter, PinEmitter, SequenceEmitter } from "./emitters";
 
 enum ACTIONS {
   RUN = "run",
@@ -23,8 +24,16 @@ const addAction = (
   });
 };
 
-export default async (io: Server, db: AppDB) => {
-  const scheduler = new Scheduler(db);
+export default async (
+  io: Server,
+  db: BetterSQLite3Database,
+  emitters: {
+    sequenceEmitter: SequenceEmitter;
+    pinEmitter: PinEmitter;
+    cronEmitter: CronEmitter;
+  }
+) => {
+  const scheduler = new Scheduler(db, emitters);
 
   await scheduler.start();
 

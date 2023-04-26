@@ -1,5 +1,4 @@
 import EventEmitter from "events";
-import { BaseSequence, Pin } from "../db/types";
 import {
   pinSetup,
   clearSequenceTimer,
@@ -9,11 +8,14 @@ import {
 import { config, gpio } from "./utils";
 
 import type { GpioManager, PinManagerEvents, SequenceTimer } from "./helpers";
+import { Pin, Sequence } from "../drizzle/schema";
+import { sequenceSchema } from "../drizzle/validators";
+import { z } from "zod";
 
 class PinManager extends EventEmitter implements GpioManager {
   private pins: Map<Pin["channel"], Pin> = new Map();
-  private reservedPins: Map<Pin["channel"], BaseSequence["id"]> = new Map();
-  private sequenceTimers: Map<BaseSequence["id"], SequenceTimer> = new Map();
+  private reservedPins: Map<Pin["channel"], Sequence["id"]> = new Map();
+  private sequenceTimers: Map<Sequence["id"], SequenceTimer> = new Map();
 
   constructor() {
     super();
@@ -76,7 +78,11 @@ class PinManager extends EventEmitter implements GpioManager {
     return Array.from(this.sequenceTimers.keys());
   };
 
-  run = (sequence: BaseSequence) => {
+  run = (
+    sequence: Sequence & {
+      orders: { duration: number; offset: number; channel: number }[];
+    }
+  ) => {
     if (this.sequenceTimers.has(sequence.id)) {
       this.emit("runError", "ALREADY_RUNNING", sequence.id);
       return `Sequence: ${sequence.name} is already running.`;
@@ -123,7 +129,7 @@ class PinManager extends EventEmitter implements GpioManager {
     this.emit("run", sequence.id);
   };
 
-  stop = async (id: BaseSequence["id"]) => {
+  stop = async (id: Sequence["id"]) => {
     const sequenceTimer = this.sequenceTimers.get(id);
     if (!sequenceTimer) {
       return;
