@@ -134,7 +134,8 @@ const activationLogger = (
       return db
         .insert(sequencesEvents)
         .values({
-          eventType: sequence.active ? "activate" : "deactivate",
+          eventType:
+            sequence.active === "activated" ? "activate" : "deactivate",
           sequenceId: sequence.id,
           date: new Date().toISOString(),
         })
