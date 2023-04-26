@@ -9,7 +9,7 @@ import { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { CronEmitter, PinEmitter, SequenceEmitter } from "./emitters";
 import PinCRUD from "./PinCRUD";
 import CronCRUD from "./CronCRUD";
-import SequenceEventCRUD from "./SequenceEventRouter";
+import SequenceEventCRUD from "./SequenceEventCRUD";
 
 const routes = {
   SEQUENCE: "/sequence",
