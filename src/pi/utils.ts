@@ -11,9 +11,7 @@ import {
 } from "../drizzle/schema";
 import PinManager from "./PinManager";
 import gpio from "rpi-gpio";
-import { and, eq } from "drizzle-orm";
-import { z } from "zod";
-import { sequenceSchema } from "../drizzle/validators";
+import { and, eq, desc } from "drizzle-orm";
 import { SequenceEmitter } from "../routes/emitters";
 
 type GpioConfig = {
@@ -69,6 +67,7 @@ const triggerCron = (
     .leftJoin(crons, eq(cronSequences.cronId, crons.id))
     .leftJoin(sequences, eq(cronSequences.sequenceId, sequences.id))
     .where(and(eq(crons.id, cronId), eq(sequences.active, "activated")))
+    .orderBy(sequences.lastRun)
     .all();
 
   const shouldRun = sequenceIds.map(({ id }) => {
@@ -88,12 +87,6 @@ const triggerCron = (
         .where(eq(orders.sequenceId, id || -1))
         .all(),
     };
-  });
-  shouldRun.sort((s1, s2) => {
-    if (!s1.lastRun && s2.lastRun) return 0;
-    if (!s1.lastRun) return 1;
-    if (!s2.lastRun) return -1;
-    return Date.parse(s1.lastRun) > Date.parse(s2.lastRun) ? 1 : -1;
   });
 
   try {
