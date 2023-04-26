@@ -1,12 +1,14 @@
 import { Express } from "express";
 import { Server } from "socket.io";
-import { AppDB } from "../db";
 import SchedulerIO from "./SchedulerIO";
 import AuthRouter, { withAuth } from "./AuthRouter";
-import CRUDRouter from "./CRUDRouter";
-import EventRouter from "./EventRouter";
 import CronSequenceRouter from "./CronSequenceRouter";
 import DeviceRouter from "./DeviceRouter";
+import SequenceCRUD from "./SequenceCRUD";
+import { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
+import { CronEmitter, PinEmitter, SequenceEmitter } from "./emitters";
+import PinCRUD from "./PinCRUD";
+import CronCRUD from "./CronCRUD";
 
 const routes = {
   SEQUENCE: "/sequence",
@@ -21,36 +23,40 @@ const routes = {
   ACTION: "/action",
 };
 
-export default async (app: Express, io: Server, db: AppDB) => {
-  const scheduler = await SchedulerIO(io, db);
+export default (app: Express, io: Server, db: BetterSQLite3Database) => {
+  const sequenceEmitter = new SequenceEmitter();
+  const pinEmitter = new PinEmitter();
+  const cronEmitter = new CronEmitter();
 
-  app.use(routes.ACTION, withAuth, DeviceRouter(scheduler));
+  const sequenceCRUD = SequenceCRUD(db, sequenceEmitter);
+  const pinCRUD = PinCRUD(db, pinEmitter);
+  const cronCRUD = CronCRUD(db, cronEmitter);
+  const cronSequenceLink = CronSequenceRouter(db);
+  const authRouter = AuthRouter(db);
 
-  app.use(
-    routes.EVENTS.SEQUENCE,
-    withAuth,
-    EventRouter(
-      db.sequenceEventDb,
-      (item) => item.sequenceId,
-      db.resolvers.resolveSequenceEvent
-    )
+  // app.use(
+  //   routes.EVENTS.SEQUENCE,
+  //   withAuth,
+  //   EventRouter(
+  //     db.sequenceEventDb,
+  //     (item) => item.sequenceId,
+  //     db.resolvers.resolveSequenceEvent
+  //   )
+  // );
+
+  app.use(routes.SEQUENCE, withAuth, sequenceCRUD);
+
+  app.use(routes.CRON, withAuth, cronCRUD);
+
+  app.use(routes.PIN, withAuth, pinCRUD);
+
+  app.use(routes.LINK, withAuth, cronSequenceLink);
+
+  app.use(routes.AUTH, authRouter);
+
+  SchedulerIO(io, db, { sequenceEmitter, pinEmitter, cronEmitter }).then(
+    (scheduler) => {
+      app.use(routes.ACTION, withAuth, DeviceRouter(scheduler));
+    }
   );
-
-  app.use(
-    routes.SEQUENCE,
-    withAuth,
-    CRUDRouter(db.sequenceDb, db.resolvers.resolveSequence)
-  );
-
-  app.use(
-    routes.CRON,
-    withAuth,
-    CRUDRouter(db.cronDb, db.resolvers.resolveCron)
-  );
-
-  app.use(routes.PIN, withAuth, CRUDRouter(db.pinDb, undefined, parseInt));
-
-  app.use(routes.LINK, withAuth, CronSequenceRouter(db.cronSequenceLink));
-
-  app.use(routes.AUTH, AuthRouter(db.adminManager));
 };
