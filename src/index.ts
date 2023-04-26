@@ -5,7 +5,18 @@ import bodyParser from "body-parser";
 import { Server } from "socket.io";
 import { createServer } from "http";
 import routes from "./routes";
-import { initDb } from "./db";
+import Database from "better-sqlite3";
+import { drizzle } from "drizzle-orm/better-sqlite3";
+import { migrate } from "drizzle-orm/better-sqlite3/migrator";
+import { sequences } from "./drizzle/schema";
+import { eq } from "drizzle-orm";
+
+const sqlite = Database("sqlite.db");
+const db = drizzle(sqlite);
+
+migrate(db, {
+  migrationsFolder: "./migrations",
+});
 
 const PORT = process.env.PORT || 8000;
 
@@ -28,12 +39,5 @@ app.use(function (req, res, next) {
   next();
 });
 
-initDb()
-  .then(async (appDb) => {
-    await routes(app, io, appDb);
-    httpServer.listen(PORT);
-  })
-  .catch((err) => {
-    console.error("Failed to start");
-    console.error(err);
-  });
+routes(app, io, db);
+httpServer.listen(PORT);
