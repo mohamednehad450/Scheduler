@@ -14,8 +14,14 @@ export default function DeviceRouter(scheduler: Scheduler) {
 
   // Run sequence
   router.post("/run/:id", (req, res) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      res.status(400);
+      res.json({ error: "invalid-id" });
+      return;
+    }
     scheduler
-      .run(req.params.id)
+      .run(id)
       .then(async (s) => {
         if (!s) {
           res.status(404);
@@ -42,8 +48,14 @@ export default function DeviceRouter(scheduler: Scheduler) {
 
   // Stop sequence
   router.post("/stop/:id", (req, res) => {
+    const id = Number(req.params.id);
+    if (isNaN(id)) {
+      res.status(400);
+      res.json({ error: "invalid-id" });
+      return;
+    }
     scheduler
-      .stop(req.params.id)
+      .stop(id)
       .then(getState)
       .then((s) => res.json(s))
       .catch((err) => {
