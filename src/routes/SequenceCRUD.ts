@@ -238,8 +238,7 @@ export default function SequenceCRUD(
             .get();
           if (!oldSeq) return undefined;
 
-          const { orders: os, ...newBase } = parsed.data;
-          const base = { ...oldSeq, ...newBase };
+          const { orders: os, ...base } = parsed.data;
           const newSeq = tx
             .update(sequences)
             .set(base)

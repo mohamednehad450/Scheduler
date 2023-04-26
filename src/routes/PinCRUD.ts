@@ -124,11 +124,7 @@ export default function PinCRUD(
       const parsed = pinSchema.omit({ channel: true }).safeParse(req.body);
       if (parsed.success) {
         const result = db.transaction((tx) => {
-          const newPin = tx
-            .update(pins)
-            .set({ ...parsed.data, channel: id })
-            .returning()
-            .get();
+          const newPin = tx.update(pins).set(parsed.data).returning().get();
           if (!newPin) return undefined;
           emitter.emit("update", newPin);
           return newPin;
@@ -172,11 +168,7 @@ export default function PinCRUD(
             .get();
           if (!oldPin) return undefined;
 
-          const newPin = tx
-            .update(pins)
-            .set({ ...oldPin, ...parsed.data })
-            .returning()
-            .get();
+          const newPin = tx.update(pins).set(parsed.data).returning().get();
           emitter.emit("update", newPin);
           return newPin;
         });
