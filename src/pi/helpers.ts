@@ -1,12 +1,16 @@
-import { BaseSequence, Pin } from "../db/types";
+import { Pin, Sequence } from "../drizzle/schema";
 import { gpio } from "./utils";
 
 export interface GpioManager {
-  run: (data: BaseSequence) => string | void;
-  running: () => BaseSequence["id"][];
-  stop: (id: BaseSequence["id"]) => Promise<void>;
+  run: (
+    data: Sequence & {
+      orders: { duration: number; offset: number; channel: number }[];
+    }
+  ) => string | void;
+  running: () => Sequence["id"][];
+  stop: (id: Sequence["id"]) => Promise<void>;
   channelsStatus: () => Promise<{ [key: Pin["channel"]]: boolean }>;
-  getReservedPins: () => { pin: Pin; sequenceId: BaseSequence["id"] }[];
+  getReservedPins: () => { pin: Pin; sequenceId: Sequence["id"] }[];
   cleanup?: () => Promise<void>;
 }
 
@@ -33,20 +37,20 @@ export type SequenceTimer = {
 };
 
 export type PinManagerEvents = {
-  run: (sequenceId: BaseSequence["id"]) => void;
-  stop: (sequenceId: BaseSequence["id"]) => void;
-  finish: (sequenceId: BaseSequence["id"]) => void;
+  run: (sequenceId: Sequence["id"]) => void;
+  stop: (sequenceId: Sequence["id"]) => void;
+  finish: (sequenceId: Sequence["id"]) => void;
   channelChange: (change: { [key: Pin["channel"]]: boolean }) => void;
   runError: (
     error: RunError,
-    sequenceId: BaseSequence["id"],
+    sequenceId: Sequence["id"],
     badChannel?: Pin["channel"][]
   ) => void;
 };
 
 export const orderToTimer = (
   pin: Pin,
-  order: BaseSequence["orders"][number],
+  order: { duration: number; offset: number; channel: number },
   onChange: (state: { [key: Pin["channel"]]: boolean }) => void
 ) => ({
   pin,
@@ -67,7 +71,9 @@ export const orderToTimer = (
 });
 
 export const setSequenceTimer = (
-  sequence: BaseSequence,
+  sequence: Sequence & {
+    orders: { duration: number; offset: number; channel: number }[];
+  },
   pinMap: Map<Pin["channel"], Pin>,
   onChannelChange: (state: { [key: Pin["channel"]]: boolean }) => void,
   cleanup: () => void

@@ -9,8 +9,6 @@ import { config, gpio } from "./utils";
 
 import type { GpioManager, PinManagerEvents, SequenceTimer } from "./helpers";
 import { Pin, Sequence } from "../drizzle/schema";
-import { sequenceSchema } from "../drizzle/validators";
-import { z } from "zod";
 
 class PinManager extends EventEmitter implements GpioManager {
   private pins: Map<Pin["channel"], Pin> = new Map();
