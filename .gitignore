@@ -2,4 +2,4 @@ built
 node_modules
 .env
 
-sqlite.db
+database
