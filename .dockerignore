@@ -1,6 +1,13 @@
 built
 node_modules
 .env
-.git
 
-database/*
+.git
+.gitignore
+
+database
+
+.prettierrc
+api-docs.yaml
+Dockerfile
+README.md
