@@ -38,14 +38,15 @@ components:
         - 37
         - 38
         - 40
+
     Cron:
       # Definition of a "Cron" object
       type: object
       description: "A Cron object with linked sequences"
       properties:
         id:
-          type: string
-          format: uuid
+          type: number
+          minimum: 1
           readOnly: true
         label:
           type: string
@@ -63,8 +64,8 @@ components:
             type: object
             properties:
               id:
-                type: string
-                format: uuid
+                type: number
+                minimum: 1
               name:
                 type: string
                 example: "Light show 1"
@@ -122,8 +123,8 @@ components:
       description: "A Sequence object"
       properties:
         id:
-          type: string
-          format: uuid
+          type: number
+          minimum: 1
           readOnly: true
         name:
           type: string
@@ -157,8 +158,8 @@ components:
             type: object
             properties:
               id:
-                type: string
-                format: uuid
+                type: number
+                minimum: 1
               label:
                 type: string
                 description: "The Cron expression label"
@@ -170,19 +171,12 @@ components:
       required:
         - "name"
       example:
-        id: 7ea1ed90-70f9-4d7b-9384-03fcdce777a7
+        id: 1
         name: "Sequence 1"
         orders: [{ duration: 1000, offset: 0, channel: 3 }]
         active: true
         lastRun: null
-        crons:
-          [
-            {
-              id: 283bec69-af44-4b71-9bf8-06329a47f84f,
-              cron: "* * * * * *",
-              label: "Every second",
-            },
-          ]
+        crons: [{ id: 1, cron: "* * * * * *", label: "Every second" }]
 
     SequenceEvent:
       # Definition of a "SequenceEvent" object
@@ -190,11 +184,11 @@ components:
       description: "A SequenceEvent object"
       properties:
         id:
-          type: string
-          format: uuid
+          type: number
+          minimum: 1
         sequenceId:
-          type: string
-          format: uuid
+          type: number
+          minimum: 1
         date:
           type: string
           description: "The event date"
@@ -215,9 +209,9 @@ components:
             name:
               type: string
       example:
-        id: 7ea1ed90-70f9-4d7b-9384-03fcdce777a7
+        id: 1
         date: "2022-12-31T22:00:00.000Z"
-        sequenceId: 283bec69-af44-4b71-9bf8-06329a47f84f
+        sequenceId: 1
         eventType: "run"
         sequence: { name: "Sequence 1" }
 
@@ -229,13 +223,9 @@ components:
           type: array
           description: "A list of all running sequences IDs"
           items:
-            type: string
-            format: uuid
-          example:
-            [
-              283bec69-af44-4b71-9bf8-06329a47f84f,
-              7ea1ed90-70f9-4d7b-9384-03fcdce777a7,
-            ]
+            type: number
+            minimum: 1
+          example: [1, 7]
         reservedPins:
           type: array
           description: "A list of all reserved pins"
@@ -245,8 +235,8 @@ components:
               pin:
                 $ref: "#/components/schemas/Pin"
               sequenceId:
-                type: string
-                format: uuid
+                type: number
+                minimum: 1
                 description: "The sequence reserving this pin"
         channelsStatus:
           type: object
@@ -347,8 +337,8 @@ paths:
           description: "ID of the sequence to request"
           required: true
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
       responses:
         "200":
           description: "The requested sequence"
@@ -374,8 +364,8 @@ paths:
           description: "ID of the sequence to modify"
           required: true
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
       requestBody:
         description: New Sequence data to update
         required: true
@@ -428,8 +418,8 @@ paths:
           description: "ID of the sequence to modify"
           required: true
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
       requestBody:
         description: Partial Sequence data to update
         required: true
@@ -474,8 +464,8 @@ paths:
           description: "ID of the sequence to delete"
           required: true
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
       responses:
         "200":
           description: "Sequence successfully removed"
@@ -720,8 +710,8 @@ paths:
           description: "ID of the Cron to request"
           required: true
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
       responses:
         "200":
           description: "The requested Cron"
@@ -747,8 +737,8 @@ paths:
           description: "ID of the Cron to modify"
           required: true
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
       requestBody:
         description: New Cron data to update
         required: true
@@ -786,8 +776,8 @@ paths:
           description: "ID of the cron to modify"
           required: true
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
       requestBody:
         description: Partial Cron data to update
         required: true
@@ -818,8 +808,8 @@ paths:
           description: "ID of the cron to delete"
           required: true
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
       responses:
         "200":
           description: "Cron successfully removed"
@@ -904,8 +894,8 @@ paths:
           required: true
           description: "The ID of the Sequence"
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
         - name: perPage
           in: query
           required: false
@@ -962,8 +952,8 @@ paths:
           required: true
           description: "The ID of the Sequence"
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
       responses:
         "200":
           description: "Events deleted successfully"
@@ -986,8 +976,8 @@ paths:
           description: "ID of the Sequence to link to"
           required: true
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
       requestBody:
         description: "A list of Cron IDs to link the sequence to"
         required: true
@@ -996,9 +986,9 @@ paths:
             schema:
               type: array
               items:
-                type: string
-                format: uuid
-            example: [283bec69-af44-4b71-9bf8-06329a47f84f]
+                type: number
+                minimum: 1
+            example: [1, 3, 8]
       responses:
         "200":
           description: "Crons linked successfully"
@@ -1027,8 +1017,8 @@ paths:
           description: "ID of the Cron to link to"
           required: true
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
       requestBody:
         description: "A list of Sequence IDs to link the cron to"
         required: true
@@ -1037,9 +1027,9 @@ paths:
             schema:
               type: array
               items:
-                type: string
-                format: uuid
-            example: [283bec69-af44-4b71-9bf8-06329a47f84f]
+                type: number
+                minimum: 1
+            example: [1, 3, 8]
       responses:
         "200":
           description: "Sequences linked successfully"
@@ -1170,8 +1160,8 @@ paths:
           description: "ID of the Sequence to run"
           required: true
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
       responses:
         "200":
           description: "Sequence ran successfully"
@@ -1212,8 +1202,8 @@ paths:
           description: "ID of the Sequence to stop"
           required: true
           schema:
-            type: string
-            format: uuid
+            type: number
+            minimum: 1
       responses:
         "200":
           description: "Sequence sopped successfully"
