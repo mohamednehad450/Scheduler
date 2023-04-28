@@ -2,19 +2,12 @@
 
 ## Table of content
 
-- [Compatibility](#compatibility)
 - [Installation](#installation)
   - [Docker](#docker)
     - [Download from DockerHub](#download-from-dockerhub)
     - [Build Docker image](#build-image-from-source)
   - [Build from source](#from-source)
 - [API docs](#api-docs)
-
-## Compatibility
-
-~~This tool only works with 64bit operating systems (due to prisma not supporting 32bit arm), which meant that it's only compatible with raspberry pi 3, 4 and zero 2.~~
-
-[Raspberry Pi OS 64bit](https://www.raspberrypi.com/software/operating-systems/#raspberry-pi-os-64-bit) is recommend for this tool
 
 ## Installation
 
@@ -36,6 +29,12 @@
    ```
 
 #### Build image from source
+
+0. Make sure git is installed
+
+   ```
+   sudo apt install git
+   ```
 
 1. Clone this project
    ```
@@ -59,7 +58,7 @@
 
 1. Create the container
    ```
-   docker container create --name scheduler_container -p 8000:8000 -v /sys:/sys -e TOKEN_KEY=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 50) -e DATABASE_FOLDER=database mohamednehad450/scheduler:1.1
+   docker container create --name scheduler_container -p 8000:8000 -v /sys:/sys -e TOKEN_KEY=$(head /dev/urandom | tr -dc A-Za-z0-9 | head -c 50) -e DATABASE_FOLDER=database mohamednehad450/scheduler:1.2
    ```
 2. Start the container
    ```
@@ -68,29 +67,29 @@
 
 ### From source
 
-1. Install node 18 using [nvm](https://github.com/nvm-sh/nvm) or from [here](https://nodejs.org/en/download/)
-
-2. Make sure git is installed
+0. Make sure git is installed
 
    ```
    sudo apt install git
    ```
 
-3. Clone this project
+1. Install node 18 using [nvm](https://github.com/nvm-sh/nvm) or from [here](https://nodejs.org/en/download/)
+
+2. Clone this project
    ```
    git clone https://github.com/mohamednehad450/Scheduler.git
    cd Scheduler
    ```
-4. Install dependencies
+3. Install dependencies
    ```
    npx -y yarn install
    ```
    If you are having troubles installing, make sure you are running gcc/g++ -v 4.8 or higher. [Here](https://github.com/fivdi/onoff/wiki/Node.js-v4-and-native-addons) is an installation guide.
-5. Build the project
+4. Build the project
    ```
    npx yarn build
    ```
-6. Add environment variables to the `.env` file
+5. Add environment variables to the `.env` file
 
    ```
    # Database file name
@@ -101,11 +100,11 @@
 
    ```
 
-7. Start the server
+6. Start the server
    ```
    npx yarn start
    ```
 
 ## API docs
 
-All of the API documentation and database models are in `api-docs.yaml`,you can view it in [SwaggerHub](https://app.swaggerhub.com/apis/mohamednehad450/Scheduler/1.1#).
+All of the API documentation and database models are in `api-docs.yaml`,you can view it in [SwaggerHub](https://app.swaggerhub.com/apis/mohamednehad450/Scheduler/1.2#).
