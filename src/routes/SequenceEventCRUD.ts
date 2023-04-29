@@ -1,7 +1,7 @@
 import { BetterSQLite3Database } from "drizzle-orm/better-sqlite3";
 import { Router } from "express";
 import { sequences, sequencesEvents } from "../drizzle/schema";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, sql } from "drizzle-orm";
 
 const PER_PAGE = 20;
 const parsePagination = (page?: any, perPage?: any) => {
@@ -38,7 +38,10 @@ export default function SequenceEventCRUD(db: BetterSQLite3Database) {
         page: {
           current: pagination.page,
           perPage: pagination.perPage,
-          total: db.select().from(sequencesEvents).all().length,
+          total: db
+            .select({ total: sql<number>`count(${sequencesEvents.id})` })
+            .from(sequencesEvents)
+            .get().total,
         },
       });
     } catch (error) {
@@ -57,8 +60,6 @@ export default function SequenceEventCRUD(db: BetterSQLite3Database) {
     }
     try {
       const pagination = parsePagination(req.query.page, req.query.perPage);
-      console.log(pagination);
-
       const events = db
         .select({
           sequence: { name: sequences.name },
@@ -81,16 +82,14 @@ export default function SequenceEventCRUD(db: BetterSQLite3Database) {
           current: pagination.page,
           perPage: pagination.perPage,
           total: db
-            .select()
+            .select({ total: sql<number>`count(${sequencesEvents.id})` })
             .from(sequencesEvents)
             .where(eq(sequencesEvents.sequenceId, id))
-            .all().length,
+            .get().total,
         },
       });
     } catch (error) {
       res.status(500);
-      console.log(error);
-
       res.json(error);
     }
   });
