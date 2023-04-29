@@ -191,7 +191,12 @@ export default function CronCRUD(
         const result = db.transaction((tx) => {
           const oldCron = tx.select().from(crons).where(eq(crons.id, id)).get();
           if (!oldCron) return undefined;
-          const newCron = tx.update(crons).set(parsed.data).returning().get();
+          const newCron = tx
+            .update(crons)
+            .set(parsed.data)
+            .where(eq(crons.id, id))
+            .returning()
+            .get();
           emitter.emit("update", newCron);
           return resolveCron(newCron, tx);
         });
