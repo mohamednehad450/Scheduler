@@ -1,24 +1,27 @@
 FROM node:18-alpine
 
-WORKDIR /server
-
-COPY package.json ./
-COPY yarn.lock ./
-
 # Node & epoll dependencies 
 RUN apk update
 RUN apk add --no-cache gcc g++ make python3
 
-RUN npx yarn install
+RUN npm install -g pnpm
+
+WORKDIR /server
+
+COPY package.json ./
+COPY pnpm-lock.yaml ./
+
+RUN pnpm i
 
 COPY . .
 
-RUN npx yarn build
+RUN pnpm build
+
 
 ENV DATABASE_FOLDER="database"
-
 VOLUME ["/server/database"]
 
+ENV PORT="8000"
 EXPOSE 8000
 
-CMD ["npx","yarn", "start"]
+CMD ["pnpm", "start"]
