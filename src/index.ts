@@ -1,7 +1,6 @@
 import { config } from "dotenv";
 config();
 import express from "express";
-import bodyParser from "body-parser";
 import { Server } from "socket.io";
 import { createServer } from "http";
 import routes from "./routes";
@@ -10,6 +9,8 @@ import { drizzle } from "drizzle-orm/better-sqlite3";
 import { migrate } from "drizzle-orm/better-sqlite3/migrator";
 import { existsSync, mkdirSync } from "node:fs";
 import { join } from "node:path";
+
+const bodyParser = require("body-parser");
 
 const dbFolder = process.env["DATABASE_FOLDER"] || "database";
 
