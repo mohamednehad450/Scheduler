@@ -1,4 +1,4 @@
-import { Express } from "express";
+import express from "express";
 import { Server } from "socket.io";
 import SchedulerIO from "./SchedulerIO";
 import AuthRouter, { withAuth } from "./AuthRouter";
@@ -10,6 +10,7 @@ import { CronEmitter, PinEmitter, SequenceEmitter } from "./emitters";
 import PinCRUD from "./PinCRUD";
 import CronCRUD from "./CronCRUD";
 import SequenceEventCRUD from "./SequenceEventCRUD";
+import path from "node:path";
 
 const routes = {
   SEQUENCE: "/api/sequence",
@@ -24,7 +25,11 @@ const routes = {
   ACTION: "/api/action",
 };
 
-export default (app: Express, io: Server, db: BetterSQLite3Database) => {
+export default (
+  app: express.Express,
+  io: Server,
+  db: BetterSQLite3Database
+) => {
   const sequenceEmitter = new SequenceEmitter();
   const pinEmitter = new PinEmitter();
   const cronEmitter = new CronEmitter();
@@ -45,6 +50,19 @@ export default (app: Express, io: Server, db: BetterSQLite3Database) => {
   SchedulerIO(io, db, { sequenceEmitter, pinEmitter, cronEmitter }).then(
     (scheduler) => {
       app.use(routes.ACTION, withAuth, DeviceRouter(scheduler));
+      const FRONTEND_DIR = process.env["FRONTEND_DIR"];
+      if (FRONTEND_DIR) {
+        app.use(express.static(FRONTEND_DIR));
+        app.use((req, res) => {
+          res.sendFile(path.join(FRONTEND_DIR, "index.html"), (err) => {
+            console.error(err);
+            console.error("Failed to serve frontend");
+          });
+        });
+      } else {
+        console.warn("Missing frontend path from the environment");
+        console.error("Frontend static files not loaded");
+      }
     }
   );
 };
