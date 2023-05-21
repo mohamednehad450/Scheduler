@@ -12,16 +12,16 @@ import CronCRUD from "./CronCRUD";
 import SequenceEventCRUD from "./SequenceEventCRUD";
 
 const routes = {
-  SEQUENCE: "/sequence",
-  PIN: "/pin",
-  CRON: "/cron",
+  SEQUENCE: "/api/sequence",
+  PIN: "/api/pin",
+  CRON: "/api/cron",
   EVENTS: {
-    SEQUENCE: "/event/sequence",
+    SEQUENCE: "/api/event/sequence",
   },
-  LINK: "/link",
+  LINK: "/api/link",
   // /link/cron/:id and /link/sequence/:id are created with cronSequenceLink
-  AUTH: "/auth",
-  ACTION: "/action",
+  AUTH: "/api/auth",
+  ACTION: "/api/action",
 };
 
 export default (app: Express, io: Server, db: BetterSQLite3Database) => {
