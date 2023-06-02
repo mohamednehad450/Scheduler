@@ -62,7 +62,11 @@ class Scheduler
     const [allPins, cronTriggers, initialActivationStatus] = [
       this.db.select().from(pins).all(),
       this.db.select().from(crons).all(),
-      this.db.select().from(sequences).all(),
+      this.db
+        .select({ id: sequences.id, active: sequences.active })
+        .from(sequences)
+        .all()
+        .map(({ active, id }) => ({ id, active: active === "activated" })),
     ];
 
     await this.pinManager.start(allPins);
@@ -93,7 +97,7 @@ class Scheduler
     this.emitters.cronEmitter.addListener("insert", insertCron);
     this.emitters.cronEmitter.addListener("remove", removeCron);
 
-    const eventHandler =
+    const createSequenceEventHandler =
       (event: SequenceEvent["eventType"]) => (id: Sequence["id"]) => {
         const date = new Date().toISOString();
         this.emit(event, id, date);
@@ -116,9 +120,9 @@ class Scheduler
 
     const channelChange: PinManagerEvents["channelChange"] = (change) =>
       this.emit("channelChange", change);
-    const stop = eventHandler("stop");
-    const run = eventHandler("run");
-    const finish = eventHandler("finish");
+    const stop = createSequenceEventHandler("stop");
+    const run = createSequenceEventHandler("run");
+    const finish = createSequenceEventHandler("finish");
     const activationLoggerCleanup = activationLogger(
       initialActivationStatus.reduce(
         (acc, cur) => ({ ...acc, [cur.id]: cur.active }),

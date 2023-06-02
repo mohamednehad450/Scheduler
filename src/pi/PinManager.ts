@@ -4,11 +4,18 @@ import {
   clearSequenceTimer,
   setSequenceTimer,
   pinRead,
+  setupGPIO,
+  destroyGPIO,
 } from "./helpers";
-import { config, gpio } from "./utils";
-
-import type { GpioManager, PinManagerEvents, SequenceTimer } from "./helpers";
-import { Pin, Sequence } from "../drizzle/schema";
+import type {
+  Order,
+  PinState,
+  Pin,
+  Sequence,
+  GpioManager,
+  PinManagerEvents,
+  SequenceTimer,
+} from "./helpers";
 
 class PinManager extends EventEmitter implements GpioManager {
   private pins: Map<Pin["channel"], Pin> = new Map();
@@ -48,18 +55,15 @@ class PinManager extends EventEmitter implements GpioManager {
   }
 
   start = async (pins: Pin[]) => {
-    const { boardMode } = config;
-    gpio.setMode(boardMode);
+    setupGPIO(pins);
 
-    await Promise.all(
-      pins.map(async (pin) => this.pins.set(pin.channel, await pinSetup(pin)))
-    );
+    pins.map((pin) => this.pins.set(pin.channel, pin));
 
     this.cleanup = async () => {
-      await Promise.resolve(
+      await Promise.all(
         Array.from(this.sequenceTimers.keys()).map((id) => this.stop(id))
       );
-      await gpio.promise.destroy().catch(console.error);
+      await destroyGPIO();
       this.pins.clear();
       this.reservedPins.clear();
       this.sequenceTimers.clear();
@@ -70,7 +74,15 @@ class PinManager extends EventEmitter implements GpioManager {
   cleanup?: () => Promise<void> = undefined;
 
   // New pin has been defined
-  insert = async (pin: Pin) => this.pins.set(pin.channel, await pinSetup(pin));
+  insert = async (pin: Pin) =>
+    pinSetup(pin)
+      .then(() => {
+        this.pins.set(pin.channel, pin);
+      })
+      .catch((err) => {
+        console.error("Failed to insert pin: ", pin);
+        console.error(err);
+      });
 
   running = () => {
     return Array.from(this.sequenceTimers.keys());
@@ -78,24 +90,33 @@ class PinManager extends EventEmitter implements GpioManager {
 
   run = (
     sequence: Sequence & {
-      orders: { duration: number; offset: number; channel: number }[];
+      orders: Order[];
     }
-  ) => {
+  ): { ok: true } | { ok: false; err: string } => {
+    // Check for ALREADY_RUNNING Error
     if (this.sequenceTimers.has(sequence.id)) {
       this.emit("runError", "ALREADY_RUNNING", sequence.id);
-      return `Sequence: ${sequence.name} is already running.`;
+      return {
+        ok: false,
+        err: `Sequence: ${sequence.name} is already running.`,
+      };
     }
 
     const channels = new Set(sequence.orders.map((o) => o.channel));
 
+    // Check for CHANNEL_IN_USE Error
     const reserved = Array.from(channels).filter((channel) =>
       this.reservedPins.has(channel)
     );
     if (reserved.length) {
       this.emit("runError", "CHANNEL_IN_USE", sequence.id, reserved);
-      return `(channels: [${reserved.join(", ")}] are reserved.`;
+      return {
+        ok: false,
+        err: `(channels: [${reserved.join(", ")}] are reserved.`,
+      };
     }
 
+    // Check for CHANNEL_NOT_INITIALIZED Error
     const notInitialized = Array.from(channels).filter(
       (channel) => !this.pins.has(channel)
     );
@@ -106,14 +127,17 @@ class PinManager extends EventEmitter implements GpioManager {
         sequence.id,
         notInitialized
       );
-      return `(channels: [${notInitialized.join(
-        ", "
-      )}] are not loaded, Reset PinManager.`;
+      return {
+        ok: false,
+        err: `(channels: [${notInitialized.join(
+          ", "
+        )}] are not loaded, Reset PinManager.`,
+      };
     }
 
     channels.forEach((channel) => this.reservedPins.set(channel, sequence.id));
 
-    const onChannelChange = (state: { [key: Pin["channel"]]: boolean }) =>
+    const onChannelChange = (state: PinState) =>
       this.emit("channelChange", state);
     const cleanup = () => {
       channels.forEach((channel) => this.reservedPins.delete(channel));
@@ -124,7 +148,10 @@ class PinManager extends EventEmitter implements GpioManager {
       sequence.id,
       setSequenceTimer(sequence, this.pins, onChannelChange, cleanup)
     );
+
     this.emit("run", sequence.id);
+
+    return { ok: true };
   };
 
   stop = async (id: Sequence["id"]) => {

@@ -1,17 +1,35 @@
-import { Pin, Sequence } from "../drizzle/schema";
-import { gpio } from "./utils";
+import {
+  Pin as DbPin,
+  Sequence as DbSequence,
+  Order as DbOrder,
+} from "../drizzle/schema";
+import { gpioConfig, gpio } from "./GPIO";
 
+export type Order = Omit<Omit<DbOrder, "id">, "sequenceId">;
+
+export type Sequence = DbSequence & { orders: Order[] };
+export type Pin = DbPin;
+export type PinState = { [key: Pin["channel"]]: boolean };
+
+export type OrderTimer = {
+  pin: Pin;
+  startTimer: NodeJS.Timeout;
+  stopTimer: NodeJS.Timeout;
+};
+
+export type SequenceTimer = {
+  orderTimers: OrderTimer[];
+  cleanup: NodeJS.Timeout;
+};
 export interface GpioManager {
-  run: (
-    data: Sequence & {
-      orders: { duration: number; offset: number; channel: number }[];
-    }
-  ) => string | void;
+  run: (sequence: Sequence) => { ok: true } | { ok: false; err: string };
   running: () => Sequence["id"][];
   stop: (id: Sequence["id"]) => Promise<void>;
-  channelsStatus: () => Promise<{ [key: Pin["channel"]]: boolean }>;
+  channelsStatus: () => Promise<PinState>;
   getReservedPins: () => { pin: Pin; sequenceId: Sequence["id"] }[];
   cleanup?: () => Promise<void>;
+  start: (pins: Pin[]) => Promise<void>;
+  insert: (pin: Pin) => Promise<void>;
 }
 
 type RunError =
@@ -23,17 +41,6 @@ type RunError =
 const pState: { [key in Pin["onState"]]: boolean } = {
   HIGH: true,
   LOW: false,
-};
-
-export type OrderTimer = {
-  pin: Pin;
-  startTimer: NodeJS.Timeout;
-  stopTimer: NodeJS.Timeout;
-};
-
-export type SequenceTimer = {
-  orderTimers: OrderTimer[];
-  cleanup: NodeJS.Timeout;
 };
 
 export type PinManagerEvents = {
@@ -48,86 +55,92 @@ export type PinManagerEvents = {
   ) => void;
 };
 
-export const orderToTimer = (
+export function orderToTimer(
   pin: Pin,
-  order: { duration: number; offset: number; channel: number },
-  onChange: (state: { [key: Pin["channel"]]: boolean }) => void
-) => ({
-  pin,
-  startTimer: setTimeout(() => {
-    pinOn(pin)
-      .then(() => onChange({ [pin.channel]: true }))
-      .catch((err) => {
-        // TODO
-      });
-  }, order.offset),
-  stopTimer: setTimeout(() => {
-    pinOff(pin)
-      .then(() => onChange({ [pin.channel]: false }))
-      .catch((err) => {
-        // TODO
-      });
-  }, order.duration + order.offset),
-});
+  { offset, duration }: Order,
+  onChange: (state: PinState) => void
+): OrderTimer {
+  return {
+    pin,
+    startTimer: setTimeout(() => {
+      pinOn(pin)
+        .then(() => onChange({ [pin.channel]: true }))
+        .catch((err) => {
+          // TODO
+        });
+    }, offset),
+    stopTimer: setTimeout(() => {
+      pinOff(pin)
+        .then(() => onChange({ [pin.channel]: false }))
+        .catch((err) => {
+          // TODO
+        });
+    }, offset + duration),
+  };
+}
 
-export const setSequenceTimer = (
-  sequence: Sequence & {
-    orders: { duration: number; offset: number; channel: number }[];
-  },
+export function setSequenceTimer(
+  sequence: Sequence,
   pinMap: Map<Pin["channel"], Pin>,
-  onChannelChange: (state: { [key: Pin["channel"]]: boolean }) => void,
+  onChannelChange: (state: PinState) => void,
   cleanup: () => void
-): SequenceTimer => {
+): SequenceTimer {
   const orderTimers: OrderTimer[] = sequence.orders.map((order) => {
     const pin = pinMap.get(order.channel) as Pin;
     return orderToTimer(pin, order, onChannelChange);
   });
-
   const maxDuration =
     Math.max(...sequence.orders.map((r) => r.duration + r.offset)) + 10;
   return {
     orderTimers,
     cleanup: setTimeout(cleanup, maxDuration),
   };
-};
+}
 
-export const clearSequenceTimer = async (sequenceTimer: SequenceTimer) => {
-  const pins = new Set<Pin>();
-  sequenceTimer.orderTimers.forEach(
-    ({ startTimer, stopTimer: closeTimer, pin }) => {
-      clearTimeout(startTimer);
-      clearTimeout(closeTimer);
-      pins.add(pin);
-    }
-  );
+export async function clearSequenceTimer(sequenceTimer: SequenceTimer) {
+  const pins = new Map<Pin["channel"], Pin>();
+  sequenceTimer.orderTimers.forEach(({ startTimer, stopTimer, pin }) => {
+    clearTimeout(startTimer);
+    clearTimeout(stopTimer);
+    pins.set(pin.channel, pin);
+  });
   clearTimeout(sequenceTimer.cleanup);
   return await Promise.all(
-    Array.from(pins).map(async (pin) => {
+    Array.from(pins.values()).map(async (pin) => {
       await pinOff(pin);
       return pin;
     })
   );
-};
+}
 
-export const pinSetup = async (pin: Pin): Promise<Pin> => {
+export async function pinSetup(pin: Pin) {
   await gpio.promise.setup(
     pin.channel,
     pin.onState === "LOW" ? gpio.DIR_HIGH : gpio.DIR_LOW
   );
-  return pin;
-};
+}
 
-export const pinOn = (pin: Pin) => {
+export async function pinOn(pin: Pin) {
   return gpio.promise.write(pin.channel, pState[pin.onState]);
-};
+}
 
-export const pinOff = (pin: Pin) => {
+export async function pinOff(pin: Pin) {
   return gpio.promise.write(pin.channel, !pState[pin.onState]);
-};
+}
 
-export const pinRead = async (pin: Pin): Promise<boolean> => {
+export async function pinRead(pin: Pin): Promise<boolean> {
   const HIGH = await gpio.promise.read(pin.channel).catch((err) => {
     // TODO
   });
   return pin.onState === "HIGH" ? !!HIGH : !HIGH;
-};
+}
+
+export async function setupGPIO(pins: Pin[]) {
+  const { boardMode } = gpioConfig;
+  gpio.setMode(boardMode);
+  await Promise.all(pins.map(async (pin) => await pinSetup(pin)));
+}
+
+export async function destroyGPIO() {
+  await gpio.promise.destroy().catch(console.error);
+}
