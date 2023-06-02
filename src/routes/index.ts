@@ -41,14 +41,14 @@ export default (
   const cronSequenceLink = CronSequenceRouter(db);
   const authRouter = AuthRouter(db);
 
-  app.use(routes.SEQUENCE, withAuth, sequenceCRUD);
-  app.use(routes.EVENTS.SEQUENCE, withAuth, sequenceEventCRUD);
-  app.use(routes.CRON, withAuth, cronCRUD);
-  app.use(routes.PIN, withAuth, pinCRUD);
-  app.use(routes.LINK, withAuth, cronSequenceLink);
-  app.use(routes.AUTH, authRouter);
   SchedulerIO(io, db, { sequenceEmitter, pinEmitter, cronEmitter }).then(
     (scheduler) => {
+      app.use(routes.SEQUENCE, withAuth, sequenceCRUD);
+      app.use(routes.EVENTS.SEQUENCE, withAuth, sequenceEventCRUD);
+      app.use(routes.CRON, withAuth, cronCRUD);
+      app.use(routes.PIN, withAuth, pinCRUD);
+      app.use(routes.LINK, withAuth, cronSequenceLink);
+      app.use(routes.AUTH, authRouter);
       app.use(routes.ACTION, withAuth, DeviceRouter(scheduler));
       const FRONTEND_DIR = process.env["FRONTEND_DIR"];
       if (FRONTEND_DIR) {
